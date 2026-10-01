@@ -29,9 +29,9 @@
 - `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `firebase-config.json`: Firebase 설정.
   - `firebase-config.json`의 웹 앱 설정은 공개돼도 되는 값이다. 접근 제어는 보안 규칙이 한다.
 - `tests/`
-  - `app-flow.test.cjs`: jsdom 앱 흐름 59항목
-  - `firestore-rules.test.mjs`: 규칙 22항목
-  - `e2e.mjs`: 에뮬레이터 + Chrome 15항목
+  - `app-flow.test.cjs`: jsdom 앱 흐름 68항목
+  - `firestore-rules.test.mjs`: 규칙 25항목
+  - `e2e.mjs`: 에뮬레이터 + Chrome 16항목
 - `FIREBASE.md`: 처음부터 배포하는 절차(콘솔 설정, 로그인, 배포).
 - `public/`, `.firebase/`, `node_modules/`는 빌드·캐시 결과물이라 커밋하지 않는다.
 
@@ -70,8 +70,9 @@ npm run deploy         # 운영 배포
 - 기본 탭은 `profile.lastMode`다.
 
 **교사 일괄 지정:** `classConfig.isAssigned`가 켜져 있으면 `modeLocked()`가 탭을 잠근다.
-- 연습 Lv.1~3을 지정하면 난이도 탭이 잠기고 지정된 크기·단계로 바로 시작한다.
-- '난이도 도전'(Lv.4)을 지정하면 연습 탭만 잠긴다.
+- 대시보드의 단계 선택은 `p0`~`p3`(연습) 또는 `easy`~`expert`(난이도) 중 하나다. 저장 형식은 `assignedLevel`(0~3, 난이도면 4) + `assignedDifficulty`(난이도 또는 null).
+- 연습 Lv.1~3을 지정하면 난이도 탭이 잠기고, 지정된 크기·단계로 바로 시작한다. 난이도를 지정하면 그 탭 하나만 열리고, 판 크기는 난이도가 정한다(보드 크기 상자 비활성).
+- `assignedLevel` 4에 `assignedDifficulty`가 없는 v0.2 설정은 예전처럼 연습 탭만 잠그고 난이도는 자유 선택으로 둔다.
 - 지정 모드에서는 완료 후 다음 단계로 넘어가지 않고 "다시 도전"만 준다.
 
 **난이도별 랭킹:**

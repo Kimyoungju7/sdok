@@ -116,16 +116,33 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($$('#t-rank tbody tr').length===3 && !$('#dash-body img') && !$('#dash-body i'),'teacher easy ranking + escaping');
   ok($('#nav-teacher').classList.contains('active'),'teacher menu active on dashboard');
   $('#v-select').value='top3'; click('[data-action=visibility-save]'); await wait(30);
-  $('#a-on').value='true'; $('#a-size').value='6'; $('#a-level').value='2'; click('[data-action=assign-save]'); await wait(80);
-  ok(store[cfgKey].isAssigned===true && store[cfgKey].assignedLevel===2,'assignment saved');
+  const lvlOpts=$$('#a-level option').map(o=>o.value);
+  ok(lvlOpts.join(',')==='p0,p1,p2,p3,easy,medium,hard,expert' && $$('#a-level optgroup').length===2,'assignment options: practice Lv.0-3 + each difficulty separately');
+  const setLevel=v=>{ $('#a-level').value=v; $('#a-level').dispatchEvent(new w.Event('change',{bubbles:true})); };
+  setLevel('hard'); ok($('#a-size').disabled,'board size select disabled for a difficulty');
+  setLevel('p2'); ok(!$('#a-size').disabled,'board size select enabled for practice');
+  $('#a-on').value='true'; $('#a-size').value='6'; click('[data-action=assign-save]'); await wait(80);
+  ok(store[cfgKey].isAssigned===true && store[cfgKey].assignedLevel===2 && store[cfgKey].assignedDifficulty===null,'practice assignment saved');
   click('#btn-switch'); await wait(30);
   click('[data-action=quick-continue]'); await wait(400);
   ok($$('#board .cell').length===36 && $('.play-head .stage-tag').textContent.includes('LV.2'),'assigned Lv.2 6x6 via quick continue');
   ok($$('.mode-tab:disabled').length===4 && !$('.mode-tab[data-mode="practice"]').disabled,'difficulty tabs locked in assigned practice');
-  ok($('.assign-note'),'assigned note shown');
-  store[cfgKey].assignedLevel=4;
+  ok($('.assign-note') && $('.assign-note').textContent.includes('연습 Lv.2'),'assigned note names the level');
+  // 교사가 '보통'만 지정 → 학생은 보통(6×6) 탭만
+  click('#nav-teacher'); await wait(120);
+  ok($('#a-level').value==='p2','dashboard shows saved practice assignment');
+  setLevel('medium'); click('[data-action=assign-save]'); await wait(80);
+  ok(store[cfgKey].assignedLevel===4 && store[cfgKey].assignedDifficulty==='medium','difficulty assignment saved (medium)');
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
-  ok($('.mode-tab[data-mode="practice"]').disabled && $$('.mode-tab:disabled').length===1 && $$('#board .cell').length===16,'assigned Lv.4 → only practice locked, starts last mode (easy 4x4)');
+  ok($('.mode-tab.active').dataset.mode==='medium' && $$('#board .cell').length===36,'assigned medium → starts 6x6 medium');
+  ok($$('.mode-tab:disabled').length===4 && !$('.mode-tab[data-mode="medium"]').disabled,'only the assigned difficulty tab is open');
+  ok($('.assign-note').textContent.includes('보통'),'assigned note names the difficulty');
+  click('.mode-tab[data-mode="hard"]'); await wait(100);
+  ok($('.mode-tab.active').dataset.mode==='medium','locked tab cannot be opened');
+  // v0.2 학급 설정(assignedLevel 4, 난이도 없음)은 예전처럼 난이도 자유
+  store[cfgKey].assignedLevel=4; delete store[cfgKey].assignedDifficulty;
+  click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
+  ok($('.mode-tab[data-mode="practice"]').disabled && $$('.mode-tab:disabled').length===1,'legacy Lv.4 config → only practice locked');
   click('#nav-rank'); await wait(100);
   click('.mode-tab[data-tab="overall"]'); await wait(80);
   ok($$('#rank-body tbody tr').length===3,'top3 visibility applied to student ranking');

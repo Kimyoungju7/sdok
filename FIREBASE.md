@@ -56,7 +56,7 @@ npm run deploy
 ## 로컬 테스트 (선택, Java 11+ 필요)
 
 ```bash
-npm run test:rules       # 보안 규칙 22개 항목
+npm run test:rules       # 보안 규칙 25개 항목
 npm run test:e2e         # 실제 앱을 에뮬레이터 + Chrome으로 조작 (학생 2명·교사 2기기)
 npm run serve:emulator   # http://127.0.0.1:5000 에서 직접 써 보기
 ```

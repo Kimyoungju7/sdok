@@ -51,10 +51,13 @@ service cloud.firestore {
 
     // ---------- 학급 설정 (교사만 수정) ----------
     function validConfig(d) {
-      return d.keys().hasOnly(['classroom','isAssigned','assignedBoardSize','assignedLevel',
+      return d.keys().hasOnly(['classroom','isAssigned','assignedBoardSize','assignedLevel','assignedDifficulty',
                                'rankingVisibility','createdAt','assignedAt'])
         && str(d.classroom, 20) && d.isAssigned is bool
         && d.assignedBoardSize in [4, 6, 9] && d.assignedLevel in [0, 1, 2, 3, 4]
+        // 연습 Lv.0~3이면 null, 난이도 지정이면 그 난이도
+        && (!('assignedDifficulty' in d) || d.assignedDifficulty == null
+            || d.assignedDifficulty in ['easy', 'medium', 'hard', 'expert'])
         && d.rankingVisibility in ['top3', 'top50', 'all'];
     }
     match /classConfig/{classId} {

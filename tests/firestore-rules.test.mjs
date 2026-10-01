@@ -31,7 +31,7 @@ async function expect(label, shouldPass, fn) {
 
 const teacher = await client('teacher');
 const student = await client('student');
-const cfg = { classroom: '3-2', isAssigned: false, assignedBoardSize: 9, assignedLevel: 4, rankingVisibility: 'all', createdAt: new Date().toISOString() };
+const cfg = { classroom: '3-2', isAssigned: false, assignedBoardSize: 9, assignedLevel: 4, assignedDifficulty: 'easy', rankingVisibility: 'all', createdAt: new Date().toISOString() };
 const secret = secretOf('3-2', 'pw1234');
 const unlockOf = c => [`classUnlocks/${c.uid}_${classId}`, { classId, secret, uid: c.uid, at: 'x' }];
 
@@ -58,6 +58,9 @@ await expect('학생이 classConfig 수정 거부 (잠금 해제 없음)', false
 await expect('다른 사람 uid로 잠금 해제 문서 쓰기 거부', false, () =>
   setDoc(doc(student.db, `classUnlocks/${teacher.uid}_${classId}`), { classId, secret, uid: teacher.uid, at: 'x' }));
 await expect('교사가 classConfig 수정 허용', true, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { isAssigned: true, assignedBoardSize: 6, assignedLevel: 2, assignedAt: 'x' }));
+await expect('교사가 난이도(보통) 지정 허용', true, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { assignedLevel: 4, assignedDifficulty: 'medium' }));
+await expect('교사가 연습 지정으로 되돌리기(난이도 null) 허용', true, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { assignedLevel: 2, assignedDifficulty: null }));
+await expect('없는 난이도 지정 거부', false, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { assignedDifficulty: 'insane' }));
 await expect('교사도 잘못된 값은 거부 (assignedLevel 7)', false, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { assignedLevel: 7 }));
 await expect('교사도 모르는 필드 추가 거부', false, () => updateDoc(doc(teacher.db, 'classConfig/' + classId), { passcode: 'x' }));
 await expect('같은 기기 재로그인(맞는 비밀번호) 허용', true, () => { const [p, d] = unlockOf(teacher); return setDoc(doc(teacher.db, p), d); });

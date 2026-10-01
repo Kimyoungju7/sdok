@@ -469,7 +469,7 @@
         <span class="tag">지정 모드</span>
         <h3>교사가 일괄 지정할 때</h3>
         <ul class="plain">
-          <li>교사가 대시보드에서 학급 전체에 적용할 보드 크기·레벨을 한 번에 지정</li>
+          <li>교사가 대시보드에서 학급 전체에 적용할 단계를 한 번에 지정 — 연습 Lv.0~3(보드 크기 선택) 또는 난이도 쉬움 / 보통 / 어려움 / 전문가 중 하나</li>
           <li>지정이 켜져 있는 동안 학생 화면의 선택 단계는 생략되고 바로 그 단계로 시작</li>
           <li>수업 중 다같이 같은 지점에서 출발해야 할 때 사용, 해제 시 자율 모드로 복귀</li>
         </ul>
@@ -574,7 +574,8 @@
           <tr><td class="mono">classroom</td><td>학급(반) 식별값</td><td class="mono">"3-2"</td></tr>
           <tr><td class="mono">isAssigned</td><td>일괄 지정이 켜져 있는지 여부</td><td class="mono">true</td></tr>
           <tr><td class="mono">assignedBoardSize</td><td>지정된 보드 크기</td><td class="mono">9</td></tr>
-          <tr><td class="mono">assignedLevel</td><td>지정된 학습 사다리 단계</td><td class="mono">2</td></tr>
+          <tr><td class="mono">assignedLevel</td><td>지정된 학습 사다리 단계 (0~3, 난이도 지정이면 4)</td><td class="mono">2</td></tr>
+          <tr><td class="mono">assignedDifficulty</td><td>지정된 난이도 (연습 지정이면 null)</td><td class="mono">"medium"</td></tr>
           <tr><td class="mono">assignedAt</td><td>지정 시각</td><td class="mono">ISO 8601</td></tr>
         </tbody>
       </table>

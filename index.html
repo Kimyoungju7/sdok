@@ -976,7 +976,10 @@ async function doEntry(name,classroom,avatar){
     else if(!AVATARS.includes(profile.avatar)){ profile.avatar=AVATARS[Math.floor(Math.random()*AVATARS.length)]; saveProfile(id,profile); }
     lsSet('last_login',{name,classroom,avatar:profile.avatar});
     const cc = await getClassConfig(classroom);
-    App.assigned = (cc.data && cc.data.isAssigned) ? {size:+cc.data.assignedBoardSize||9, level:+cc.data.assignedLevel||0} : null;
+    App.assigned = (cc.data && cc.data.isAssigned) ? {
+      size:+cc.data.assignedBoardSize||9, level:+cc.data.assignedLevel||0,
+      difficulty: DIFF_ORDER.includes(cc.data.assignedDifficulty) ? cc.data.assignedDifficulty : null
+    } : null;
     App.rankVis = (cc.data && cc.data.rankingVisibility) || 'all';
   }finally{ hideLoading(); }
   routeAfterEntry();
@@ -988,17 +991,28 @@ function defaultMode(){
   if(MODE_ORDER.includes(p.lastMode)) return p.lastMode;
   return p.tutorialLevel<4 ? 'practice' : 'easy';
 }
-// 교사 일괄 지정: Lv.1~3이면 연습 탭만, '난이도 도전'(Lv.4)이면 4개 난이도 탭만 쓸 수 있다.
+// 교사 일괄 지정: 연습 Lv.0~3이면 연습 탭만, 난이도(쉬움~전문가) 하나를 지정하면 그 탭만 쓸 수 있다.
+// (assignedLevel 4에 assignedDifficulty가 없는 v0.2 학급 설정은 예전처럼 4개 난이도 자유 선택으로 둔다)
 function modeLocked(mode){
-  if(!App.assigned) return false;
-  if(App.assigned.level>=4) return mode==='practice';
+  const a=App.assigned;
+  if(!a) return false;
+  if(a.difficulty) return mode!==a.difficulty;
+  if(a.level>=4) return mode==='practice';
   return mode!=='practice';
+}
+function assignedLabel(){
+  const a=App.assigned;
+  if(!a) return '';
+  if(a.difficulty) return `${MODE_META[a.difficulty].emoji} ${MODE_META[a.difficulty].label}`;
+  if(a.level>=4) return '난이도 도전';
+  return `연습 Lv.${Math.max(a.level,1)}`;
 }
 function routeAfterEntry(){
   renderTopbar();
   const p=App.profile;
   if(App.assigned){
     const a=App.assigned;
+    if(a.difficulty){ if(p.tutorialLevel===0){ renderRules(); return; } startMode(a.difficulty); return; }
     if(a.level>=4){ startMode(DIFF_ORDER.includes(p.lastMode)?p.lastMode:'easy'); return; }
     // 규칙 화면은 교사가 Lv.0을 지정했거나, 학생이 아직 한 번도 보지 않았을 때만
     if(a.level===0 || p.tutorialLevel===0){ renderRules(); return; }
@@ -1048,7 +1062,8 @@ function afterRules(){
   App.profile.tutorialLevel = Math.max(App.profile.tutorialLevel,1);
   saveProfile(App.profileId, App.profile);
   if(App.assigned){
-    if(App.assigned.level>=4) startMode('easy');
+    if(App.assigned.difficulty) startMode(App.assigned.difficulty);
+    else if(App.assigned.level>=4) startMode('easy');
     else startPractice(Math.max(App.assigned.level,1), App.assigned.size);
     return;
   }
@@ -1091,7 +1106,7 @@ function pickSize(n){
 /* ========================= Puzzle session ========================= */
 function startMode(mode){
   if(mode==='practice'){
-    if(App.assigned && App.assigned.level<4){ startPractice(Math.max(App.assigned.level,1), App.assigned.size); return; }
+    if(App.assigned && !App.assigned.difficulty && App.assigned.level<4){ startPractice(Math.max(App.assigned.level,1), App.assigned.size); return; }
     if(!App.profile.boardSizePref){ endSession(); renderSizeSelect(); return; }
     startPractice(practiceLevel(), App.profile.boardSizePref);
     return;
@@ -1150,7 +1165,7 @@ function renderPlay(){
   const stageLabel = s.kind==='tutorial'
     ? `학습 사다리 · LV.${s.level} ${TUTORIAL_LABEL[s.level]} · ${s.size}×${s.size}`
     : `${s.size}×${s.size} · 처음 숫자 ${DIFF_CLUES[s.difficulty]}칸 · 힌트 ${DIFF_HINTS[s.difficulty]}회`;
-  const lockedNote = App.assigned ? `<p class="assign-note">📌 선생님이 지정한 단계로 진행 중이에요</p>` : '';
+  const lockedNote = App.assigned ? `<p class="assign-note">📌 선생님이 지정한 단계(${assignedLabel()})로 진행 중이에요</p>` : '';
   view.innerHTML = `
     <div class="m-${s.mode}">
       <div class="mode-tabs" role="tablist" aria-label="난이도">
@@ -1715,7 +1730,7 @@ async function firebaseTeacherLogin(classroom, pass){
   if(!snap.exists){
     await App.db.batchSet([
       ['classSecrets/'+id, {passHash: await sha256Hex(secret)}],
-      ['classConfig/'+id, {classroom, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString()}],
+      ['classConfig/'+id, {classroom, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:'easy', rankingVisibility:'all', createdAt:new Date().toISOString()}],
       unlock
     ]);
     return 'created';
@@ -1758,7 +1773,7 @@ async function handleTeacherLogin(form){
     const hash = await hashPass(classroom, pass);
     const cur = snap.exists ? snap.data() : null;
     if(!cur || (!cur.passHash && !cur.passcode)){
-      await ref.set({ classroom, passHash:hash, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString() });
+      await ref.set({ classroom, passHash:hash, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:'easy', rankingVisibility:'all', createdAt:new Date().toISOString() });
       toast('새 학급 비밀번호가 설정됐어요.');
     } else if(cur.passHash ? cur.passHash!==hash : cur.passcode!==pass){
       hideLoading();
@@ -1802,7 +1817,7 @@ async function loadDashboardData(){
       App.db.collection('profiles').where('classroom','==',classroom).get(),
       App.db.collection('sessions').where('classroom','==',classroom).get()
     ]);
-    const cc = ccSnap.exists ? ccSnap.data() : {isAssigned:false,assignedBoardSize:9,assignedLevel:4,rankingVisibility:'all'};
+    const cc = ccSnap.exists ? ccSnap.data() : {isAssigned:false,assignedBoardSize:9,assignedLevel:4,assignedDifficulty:'easy',rankingVisibility:'all'};
     const profiles = profQ.docs.map(d=>JSON.parse(JSON.stringify(d.data())));
     const sessions = sessQ.docs.map(d=>d.data()).sort((a,b)=> new Date(b.finishedAt)-new Date(a.finishedAt));
     App.teacher.data = {cc,profiles,sessions};
@@ -1818,6 +1833,9 @@ function teacherRankBody(){
   return rankTableHTML(sorted,tab,{highlightMe:false});
 }
 function buildDashboardHTML(cc,profiles,sessions){
+  // 저장된 지정 값 → 선택 상자 값 ('p0'~'p3' 연습 / 'easy'~'expert' 난이도). v0.2의 '난이도 자유'(4)는 쉬움으로 표시
+  const assignSel = DIFF_ORDER.includes(cc.assignedDifficulty) ? cc.assignedDifficulty
+    : (+cc.assignedLevel>=0 && +cc.assignedLevel<=3 ? 'p'+(+cc.assignedLevel) : 'easy');
   const totalStudents=profiles.length;
   const totalCompleted=sessions.length;
   const avgMistakes = sessions.length ? (sessions.reduce((a,s)=>a+(+s.mistakeCount||0),0)/sessions.length).toFixed(1) : '-';
@@ -1839,18 +1857,22 @@ function buildDashboardHTML(cc,profiles,sessions){
         <div class="field"><label for="a-on">지정 모드</label>
           <select id="a-on"><option value="false" ${!cc.isAssigned?'selected':''}>끄기 (자율)</option><option value="true" ${cc.isAssigned?'selected':''}>켜기 (일괄 지정)</option></select>
         </div>
-        <div class="field"><label for="a-size">연습 보드 크기</label>
-          <select id="a-size">${[4,6,9].map(n=>`<option value="${n}" ${+cc.assignedBoardSize===n?'selected':''}>${n}×${n}</option>`).join('')}</select>
-        </div>
         <div class="field"><label for="a-level">단계</label>
           <select id="a-level">
-            ${[0,1,2,3].map(l=>`<option value="${l}" ${+cc.assignedLevel===l?'selected':''}>연습 Lv.${l} · ${TUTORIAL_LABEL[l]}</option>`).join('')}
-            <option value="4" ${+cc.assignedLevel===4?'selected':''}>난이도 도전 (쉬움~전문가 자유)</option>
+            <optgroup label="✏️ 연습 (학습 사다리)">
+              ${[0,1,2,3].map(l=>`<option value="p${l}" ${assignSel===('p'+l)?'selected':''}>연습 Lv.${l} · ${TUTORIAL_LABEL[l]}</option>`).join('')}
+            </optgroup>
+            <optgroup label="🏆 난이도 도전">
+              ${DIFF_ORDER.map(d=>`<option value="${d}" ${assignSel===d?'selected':''}>${MODE_META[d].emoji} ${MODE_META[d].label} · ${DIFF_SIZE[d]}×${DIFF_SIZE[d]}</option>`).join('')}
+            </optgroup>
           </select>
+        </div>
+        <div class="field"><label for="a-size">연습 보드 크기</label>
+          <select id="a-size" ${assignSel.startsWith('p')?'':'disabled'}>${[4,6,9].map(n=>`<option value="${n}" ${+cc.assignedBoardSize===n?'selected':''}>${n}×${n}</option>`).join('')}</select>
         </div>
         <button class="btn btn-warm" data-action="assign-save">저장</button>
       </div>
-      <p class="hint" style="margin-top:10px;">켜져 있으면 학생의 게임 화면에서 지정 단계 외의 탭이 잠겨요. '난이도 도전'을 지정하면 연습 탭만 잠기고 4개 난이도는 자유롭게 고를 수 있어요.</p>
+      <p class="hint" style="margin-top:10px;">켜져 있으면 학생의 게임 화면에서 지정한 탭 외에는 모두 잠겨요. 연습 단계는 보드 크기를 고를 수 있고, 난이도(쉬움 4×4 · 보통 6×6 · 어려움 9×9 · 전문가 9×9)는 판 크기가 정해져 있어요.</p>
     </div>
 
     <h2 class="section-title">학급 랭킹 보드</h2>
@@ -1900,9 +1922,13 @@ function showStudentDetail(name){
 async function saveAssignment(){
   const on = document.getElementById('a-on').value==='true';
   const size = +document.getElementById('a-size').value;
-  const level = +document.getElementById('a-level').value;
+  const v = document.getElementById('a-level').value;
+  const isPractice = /^p[0-3]$/.test(v);
+  if(!isPractice && !DIFF_ORDER.includes(v)) return;
+  const level = isPractice ? +v.slice(1) : 4;
+  const difficulty = isPractice ? null : v;
   try{
-    await App.db.doc('classConfig/'+App.teacher.id).update({isAssigned:on, assignedBoardSize:size, assignedLevel:level, assignedAt:new Date().toISOString()});
+    await App.db.doc('classConfig/'+App.teacher.id).update({isAssigned:on, assignedBoardSize:size, assignedLevel:level, assignedDifficulty:difficulty, assignedAt:new Date().toISOString()});
     toast('학습 단계 지정을 저장했어요.');
     loadDashboardData();
   }catch(e){ toast('저장에 실패했어요.'); }
@@ -1945,6 +1971,13 @@ async function exportCSV(){
 document.addEventListener('submit', (e)=>{
   if(e.target.id==='entry-form'){ e.preventDefault(); handleEntrySubmit(e.target); }
   if(e.target.id==='teacher-login-form'){ e.preventDefault(); handleTeacherLogin(e.target); }
+});
+
+document.addEventListener('change', (e)=>{
+  if(e.target.id==='a-level'){
+    const size=document.getElementById('a-size');
+    if(size) size.disabled = !e.target.value.startsWith('p');
+  }
 });
 
 document.addEventListener('click', (e)=>{

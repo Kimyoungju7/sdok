@@ -84,7 +84,7 @@ await t.$eval('#teacher-login-form', f => f.dispatchEvent(new Event('submit', { 
 await t.waitForSelector('#dash-body .teacher-grid', { timeout: 20000 });
 ok((await text(t, '#dash-body')).includes('김하늘'), '교사 대시보드에 학생 기록 표시');
 // 일괄 지정: 연습 Lv.2 · 6×6
-await t.$eval('#a-on', el => el.value = 'true'); await t.$eval('#a-size', el => el.value = '6'); await t.$eval('#a-level', el => el.value = '2');
+await t.$eval('#a-on', el => el.value = 'true'); await t.$eval('#a-size', el => el.value = '6'); await t.$eval('#a-level', el => el.value = 'p2');
 await click(t, '[data-action=assign-save]');
 await t.waitForFunction(() => !document.getElementById('toast').hidden && document.getElementById('toast').textContent.includes('저장'), { timeout: 10000 }).catch(() => {});
 ok((await text(t, '#toast')).includes('저장했어요'), '교사 일괄 지정 저장 성공');
@@ -107,6 +107,18 @@ await click(a, '[data-action=quick-continue]');
 await a.waitForSelector('#board .cell', { timeout: 20000 });
 await sleep(300);
 ok((await a.$$('#board .cell')).length === 36 && (await a.$$('.mode-tab:disabled')).length === 4, '학생 재입장 시 교사 지정(연습 Lv.2 6×6, 난이도 탭 잠금) 적용');
+
+// 6) 교사가 난이도 '어려움'만 지정 → 학생은 9×9 어려움 탭만
+await t.$eval('#a-level', el => { el.value = 'hard'; el.dispatchEvent(new Event('change', { bubbles: true })); });
+await t.$eval('#toast', el => { el.hidden = true; el.textContent = ''; });
+await click(t, '[data-action=assign-save]');
+await t.waitForFunction(() => document.getElementById('toast').textContent.includes('저장했어요'), { timeout: 10000 }).catch(() => {});
+await a.goto(BASE, { waitUntil: 'networkidle0' });
+await click(a, '[data-action=quick-continue]');
+await a.waitForSelector('#board .cell', { timeout: 20000 });
+await sleep(300);
+ok((await a.$$('#board .cell')).length === 81 && await a.$eval('.mode-tab.active', el => el.dataset.mode) === 'hard'
+   && (await a.$$('.mode-tab:disabled')).length === 4, '교사가 어려움만 지정 → 학생은 9×9 어려움 탭만 열림');
 
 for (const [n, p] of [['A', a], ['B', b], ['T', t], ['T2', t2]]) {
   const errs = p.errors.filter(e => !/Failed to load resource.*(favicon|403)/.test(e) && !/permission/i.test(e));
