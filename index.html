@@ -418,7 +418,8 @@ async function loadProfile(name,classroom){
   if(App.db){
     try{
       const snap = await App.db.doc('profiles/'+id).get();
-      if(snap.exists) profile = snap.data();
+      // snap.data()는 동결(frozen) 객체라 그대로 수정하면 strict 모드에서 오류 — 깊은 복사
+      if(snap.exists) profile = JSON.parse(JSON.stringify(snap.data()));
     }catch(e){}
   }
   // 예전 버전에서 저장된 문서에 빠진 필드가 있어도 동작하도록 기본값과 병합

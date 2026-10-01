@@ -7,9 +7,9 @@
 - `index.html` — 실제 앱(학생 플레이 화면 + 교사 대시보드). 단일 HTML 파일, 외부 라이브러리 없이 순수 JS로 작성.
 - `plan.html` — 프로젝트 계획서(기획 문서). 기능 정의와 설계 근거를 담고 있어, 기능을 바꿀 때 먼저 참고할 것.
 
-두 파일 모두 Claude 아티팩트로도 배포되어 있다 (`/artifacts`로 조회):
-- 앱: https://claude.ai/code/artifact/0d0a3090-cec5-4643-968a-ab17e7a7507d
-- 계획서: https://claude.ai/code/artifact/d88ba062-622d-4c06-9315-a9441324d77c
+Claude 아티팩트로 배포되어 있다 (`/artifacts`로 조회):
+- 앱: https://claude.ai/artifact/URSBNqAgU2PJwpMTaT2aaP — **akrenddl7@gmail.com 개인 계정** 소유 (2026-10-01 새로 배포, capabilities: `db`, `downloads`)
+- 예전 링크(학교 계정 소유, 이 계정으로는 재배포 불가): 앱 `0d0a3090-cec5-4643-968a-ab17e7a7507d`, 계획서 `d88ba062-622d-4c06-9315-a9441324d77c`. 예전 링크의 학생 기록은 새 링크로 옮겨지지 않았다.
 
 앱을 수정하면 `index.html`을 편집한 뒤 Artifact 도구로 같은 URL에 재배포해야 실제 사용자가 보는 링크가 업데이트된다 (로컬 파일 저장만으로는 배포되지 않음).
 
