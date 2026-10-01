@@ -370,9 +370,12 @@
         <span class="tag">학생용</span>
         <h3>플레이 화면</h3>
         <ul class="plain">
-          <li>이름 + 학급 입력 후 바로 시작 (회원가입 없음)</li>
-          <li>첫 방문 시 단계별 학습(튜토리얼) 자동 안내</li>
-          <li>난이도 4단계 — 쉬움 / 보통 / 어려움 / 전문가</li>
+          <li>이름 + 학급 + 아바타 이모지 선택 후 바로 시작 (회원가입 없음)</li>
+          <li>첫 방문 시 규칙 설명(Lv.0) 1회 안내, 학습 사다리는 '연습' 탭에서 진행</li>
+          <li>난이도 4단계 — 쉬움 / 보통 / 어려움 / 전문가, <b style="color:var(--ink)">처음부터 모두 개방</b></li>
+          <li><b style="color:var(--ink)">게임 화면 안의 난이도 탭</b>으로 즉시 전환 + 옆에 '이 난이도 우리 반 TOP 5'</li>
+          <li><b style="color:var(--ink)">난이도별 랭킹</b> — 보정 기록(시간 + 실수×10초 + 힌트×30초) 기준</li>
+          <li>콤보·별점(1~3개)·완료 축하 효과·숫자별 남은 개수 표시로 몰입 유도</li>
           <li>9×9 보드, 숫자패드 또는 키보드 입력</li>
           <li>경과 시간 타이머, 실수 횟수 카운터, 힌트</li>
           <li>완료할수록 쌓이는 레벨·경험치(XP)·뱃지</li>
@@ -383,12 +386,12 @@
         <span class="tag">교사용</span>
         <h3>대시보드</h3>
         <ul class="plain">
-          <li>교사 전용 접속 화면(비밀번호 1개로 간단 보호)</li>
+          <li>교사 전용 접속 화면 — 상단 메뉴 '🧑‍🏫 교사'에서 진입(비밀번호 1개로 간단 보호)</li>
           <li>학생별 전체 풀이 기록 목록 (이름·날짜·난이도순 정렬)</li>
           <li>난이도별 평균 소요 시간·완료율 통계</li>
           <li>학생 개인 리포트 — 시도 추이, 힌트 의존도, 레벨 성장</li>
           <li><b style="color:var(--ink)">학습 단계 일괄 지정</b> — 학급 전체를 같은 보드 크기·레벨로 시작</li>
-          <li><b style="color:var(--ink)">학급별 랭킹 보드</b> — 공개 범위 설정 가능</li>
+          <li><b style="color:var(--ink)">학급별 랭킹 보드</b> — 종합(XP) + 난이도별 탭, 공개 범위 설정 가능</li>
           <li>기간/난이도 필터링, CSV로 내보내기</li>
         </ul>
       </div>
@@ -407,15 +410,15 @@
           </div>
           <div class="flow-row">
             <div class="flow-dot-col"><div class="flow-dot"></div><div class="flow-line"></div></div>
-            <div class="flow-body"><span class="step-label">STEP 2</span><strong>(처음이면) 학습 단계</strong><span class="d">교사가 일괄 지정했으면 그 보드 크기·레벨로 바로 시작, 아니면 학생이 직접 6×6/9×9와 레벨 선택</span></div>
+            <div class="flow-body"><span class="step-label">STEP 2</span><strong>(처음이면) 규칙 알아보기</strong><span class="d">교사가 일괄 지정했으면 그 보드 크기·레벨로 바로 시작, 아니면 규칙 설명 1회 후 게임 화면으로</span></div>
           </div>
           <div class="flow-row">
             <div class="flow-dot-col"><div class="flow-dot"></div><div class="flow-line"></div></div>
-            <div class="flow-body"><span class="step-label">STEP 3</span><strong>난이도 선택 후 풀이</strong><span class="d">현재 레벨에 맞는 추천 난이도 표시, 타이머·힌트 동작</span></div>
+            <div class="flow-body"><span class="step-label">STEP 3</span><strong>게임 화면에서 난이도 탭으로 풀이</strong><span class="d">[연습 · 쉬움 · 보통 · 어려움 · 전문가] 탭을 언제든 전환, 옆 패널에서 이 난이도 반 TOP 5 확인</span></div>
           </div>
           <div class="flow-row">
             <div class="flow-dot-col"><div class="flow-dot"></div></div>
-            <div class="flow-body"><span class="step-label">STEP 4</span><strong>결과 저장 · 성장</strong><span class="d">XP·레벨이 누적되고, 학급 랭킹과 교사 대시보드에 반영</span></div>
+            <div class="flow-body"><span class="step-label">STEP 4</span><strong>결과 저장 · 성장</strong><span class="d">XP·레벨 누적, 별점·최고 기록 갱신 여부와 이 난이도 반 순위 표시, 교사 대시보드에 반영</span></div>
           </div>
         </div>
       </div>
@@ -493,7 +496,7 @@
       </div>
       <div class="flow-row">
         <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div></div>
-        <div class="flow-body"><span class="step-label">LV. 4 · 자유 도전 해금</span><strong>9×9 표준, 보통 이상 자유 선택</strong><span class="d">6×6으로 시작했어도 이 지점부터는 9×9로 전환되며, 보통→어려움→전문가를 자유롭게 고르되 '다음 추천 난이도' 배지로 유도</span></div>
+        <div class="flow-body"><span class="step-label">LV. 4 · 사다리 완주</span><strong>9×9 난이도 탭으로 졸업</strong><span class="d">v0.2부터 쉬움~전문가는 처음부터 모두 열려 있다. 사다리(Lv.1~3)는 '연습' 탭에서 원할 때 진행하는 학습 경로이고, 완주하면 기본 탭이 마지막으로 플레이한 난이도로 바뀐다</span></div>
       </div>
     </div>
   </section>
@@ -552,7 +555,10 @@
           <tr><td class="mono">level / totalXP</td><td>현재 레벨과 누적 경험치</td><td class="mono">7 / 1,240</td></tr>
           <tr><td class="mono">totalCompleted</td><td>완료한 퍼즐 누적 개수</td><td class="mono">23</td></tr>
           <tr><td class="mono">streakDays</td><td>연속 참여일</td><td class="mono">5</td></tr>
-          <tr><td class="mono">unlockedDifficulty</td><td>현재까지 해금된 최고 난이도</td><td class="mono">"expert"</td></tr>
+          <tr><td class="mono">bestDifficulty</td><td>완료한 최고 난이도</td><td class="mono">"expert"</td></tr>
+          <tr><td class="mono">bests</td><td>난이도별 최고 보정 기록 (랭킹 산정용)</td><td class="mono">{easy:{score:228,sec:198,mistakes:3,hints:0}}</td></tr>
+          <tr><td class="mono">avatar</td><td>학생이 고른 아바타 이모지</td><td class="mono">"🦊"</td></tr>
+          <tr><td class="mono">lastMode</td><td>마지막으로 플레이한 탭 (기본 탭 결정)</td><td class="mono">"medium"</td></tr>
           <tr><td class="mono">tutorialLevel</td><td>학습 사다리 진행 단계 (0~4)</td><td class="mono">3</td></tr>
           <tr><td class="mono">boardSizePref</td><td>직접 선택했던 연습 보드 크기</td><td class="mono">6</td></tr>
           <tr><td class="mono">badges</td><td>획득한 칭호 목록</td><td class="mono">["새싹","숙련자"]</td></tr>
@@ -590,6 +596,8 @@
         </tbody>
       </table>
     </div>
+    <p style="font-weight:600;color:var(--ink);margin:22px 0 10px;font-size:14.5px;">난이도별 랭킹 (v0.2)</p>
+    <p>종합 랭킹과 별도로 난이도마다 <b style="color:var(--ink)">보정 기록</b> 순위를 둔다. 보정 기록 = 걸린 시간 + 실수 1회당 10초 + 힌트 1회당 30초이며 짧을수록 높은 순위다. 빠르면서도 정확하게 푸는 것을 보상하고, 표에는 "3:42 (실수 2·힌트 0)"처럼 근거를 함께 표시한다. 학생별 최고 기록 하나만 순위에 오르고, 교사의 공개 범위 설정이 똑같이 적용된다. 랭킹은 상단 메뉴 '🏆 랭킹', 게임 화면 옆 TOP 5, 결과 화면의 '이 난이도 반 n위'에서 볼 수 있다.</p>
     <p class="note-inline">※ 학급 간 비교가 필요하면 '학급 평균 XP' 같은 반 단위 지표를 별도로 제공해, 개인 노출 없이도 담임 간 비교가 가능하게 한다.</p>
   </section>
 
@@ -666,7 +674,7 @@
 
   <footer>
     <span>스도쿠 교실 · 프로젝트 계획서</span>
-    <span>v0.1 — 2026-10-01</span>
+    <span>v0.2 — 2026-10-01</span>
   </footer>
 
 </div>
