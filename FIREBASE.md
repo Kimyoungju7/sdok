@@ -23,8 +23,9 @@
 ```bash
 npm install
 npx firebase login
-npx firebase use --add      # 프로젝트 선택 → 별칭은 default
 ```
+
+프로젝트는 `.firebaserc`에 `sudoku-617bb`로 지정되어 있다. 다른 프로젝트에 배포하려면 `npx firebase use --add`.
 
 ## 3. 배포
 

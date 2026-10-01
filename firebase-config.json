@@ -1,8 +1,9 @@
 {
-  "apiKey": "PASTE_API_KEY",
-  "authDomain": "PASTE_PROJECT_ID.firebaseapp.com",
-  "projectId": "PASTE_PROJECT_ID",
-  "storageBucket": "PASTE_PROJECT_ID.firebasestorage.app",
-  "messagingSenderId": "PASTE_SENDER_ID",
-  "appId": "PASTE_APP_ID"
+  "apiKey": "AIzaSyC2oYhUQRo6cBP4sdznSdcVZXx6FiRvvzU",
+  "authDomain": "sudoku-617bb.firebaseapp.com",
+  "projectId": "sudoku-617bb",
+  "storageBucket": "sudoku-617bb.firebasestorage.app",
+  "messagingSenderId": "289857813574",
+  "appId": "1:289857813574:web:dbe637d70b644556285e47",
+  "measurementId": "G-2FPCNMPB44"
 }
