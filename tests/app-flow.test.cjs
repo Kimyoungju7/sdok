@@ -36,9 +36,10 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
 (async()=>{
   const myId=b64('3-2__김하늘');
   store['profiles/'+myId]={studentName:'김하늘',classroom:'3-2',totalXP:500,level:2,tutorialLevel:2,boardSizePref:4,totalCompleted:5,streakDays:1,badges:['새싹']};
-  store['profiles/'+b64('3-2__빠른이')]={studentName:'빠른이',classroom:'3-2',totalXP:900,level:3,avatar:'🐼',bests:{easy:{score:5,sec:5,mistakes:0,hints:0,at:'2026-09-30T00:00:00Z'}}};
-  store['profiles/'+b64('3-2__느린이')]={studentName:'느린이',classroom:'3-2',totalXP:100,level:1,avatar:'🐯',bests:{easy:{score:99999,sec:99999,mistakes:0,hints:0,at:'2026-09-30T00:00:00Z'}}};
-  store['profiles/'+b64('3-2__x')]={studentName:'<img src=x onerror=alert(1)>',classroom:'3-2',totalXP:50,avatar:'<b>bad</b>',bests:{easy:{score:'<i>1</i>',sec:5,at:'<script>'}}};
+  store['profiles/'+b64('3-2__빠른이')]={studentName:'빠른이',classroom:'3-2',totalXP:900,level:3,avatar:'🐼',bests:{easy:{score:5,sec:5,mistakes:0,hints:0,size:4,at:'2026-09-30T00:00:00Z'}}};
+  store['profiles/'+b64('3-2__느린이')]={studentName:'느린이',classroom:'3-2',totalXP:100,level:1,avatar:'🐯',bests:{easy:{score:99999,sec:99999,mistakes:0,hints:0,size:4,at:'2026-09-30T00:00:00Z'}}};
+  store['profiles/'+b64('3-2__예전이')]={studentName:'예전이',classroom:'3-2',totalXP:10,level:1,avatar:'🐨',bests:{easy:{score:1,sec:1,mistakes:0,hints:0,at:'2026-09-01T00:00:00Z'}}};
+  store['profiles/'+b64('3-2__x')]={studentName:'<img src=x onerror=alert(1)>',classroom:'3-2',totalXP:50,avatar:'<b>bad</b>',bests:{easy:{score:'<i>1</i>',sec:5,size:4,at:'<script>'}}};
   store['classConfig/'+b64('3-2')]={classroom:'3-2',passcode:'old',isAssigned:false,assignedBoardSize:9,assignedLevel:4,rankingVisibility:'all'};
 
   ok(!$('.home-card') && $('#nav-teacher') && !$('#nav-teacher').hidden,'teacher entry moved to top menu (not on home)');
@@ -56,10 +57,17 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($('#side-rank').textContent.includes('학습 사다리'),'practice side panel shows ladder map');
   ok(!$('#nav-rank').hidden,'ranking menu visible after entry');
   click('.mode-tab[data-mode="easy"]'); await wait(200);
-  ok($$('#board .cell').length===81 && $('.mode-tab.active').dataset.mode==='easy','switch to easy without confirm when no moves');
+  ok($$('#board .cell').length===16 && $('.mode-tab.active').dataset.mode==='easy','switch to easy (4x4) without confirm when no moves');
   await wait(50);
   ok($('#side-rank').textContent.includes('TOP 5') && $('#side-rank').textContent.includes('빠른이'),'side panel shows easy TOP 5');
   ok(!$('#side-rank').textContent.includes('<img'),'record with non-numeric score excluded from difficulty ranking');
+  for(const [m,n] of [['medium',36],['hard',81],['expert',81],['easy',16]]){
+    click(`.mode-tab[data-mode="${m}"]`); await wait(200);
+    ok($$('#board .cell').length===n && $('.mode-tab.active').dataset.mode===m, `${m} uses ${Math.sqrt(n)}x${Math.sqrt(n)} board`);
+  }
+  ok($$('#board .cell.given').length===8,'easy 4x4 starts with 8 given numbers');
+  ok($('.mode-tab[data-mode="medium"] .tab-size').textContent==='6×6','tab shows board size');
+  await wait(50);
   wrongMove();
   ok($('#stat-mistakes').textContent==='1' && $('.cell.error'),'wrong input counted and marked');
   click('.mode-tab[data-mode="medium"]'); await wait(20);
@@ -72,7 +80,7 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok(!$('#rank-body img') && !$('#rank-body b:not(.mono) b') && $('#rank-body').textContent.includes('<img'),'ranking (overall) escapes injected name/avatar');
   ok(!$$('#rank-body tbody tr').some(tr=>tr.textContent.includes('bad')) || $('#rank-body').textContent.includes('🙂'),'unknown avatar replaced');
   click('[data-action=resume-game]'); await wait(50);
-  ok($('#stat-mistakes').textContent==='1' && $$('#board .cell').length===81,'resume keeps puzzle state');
+  ok($('#stat-mistakes').textContent==='1' && $$('#board .cell').length===16,'resume keeps puzzle state');
   solveOnScreen(); await wait(100);
   ok($('.result-card'),'completion → result screen');
   ok($('.record-box') && $('.newbest') && $('.newbest').textContent.includes('첫 기록'),'record box with first-record message');
@@ -81,10 +89,12 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok(/2위/.test($('#result-rank').textContent),'result shows class rank: '+$('#result-rank').textContent);
   const saved=store['profiles/'+myId];
   ok(saved.bests && saved.bests.easy && saved.bests.easy.mistakes===1 && saved.lastMode==='easy' && saved.totalXP>500,'best record, lastMode, XP saved');
+  ok(saved.bests.easy.size===4,'record stores board size');
   const sess=Object.keys(store).filter(k=>k.startsWith('sessions/')).map(k=>store[k]);
   ok(sess.length===1 && sess[0].stars===2 && sess[0].recordScore===saved.bests.easy.score,'session doc has stars/recordScore');
   click('[data-action=show-ranking]'); await wait(80);
   const names=$$('#rank-body tbody tr').map(tr=>tr.children[1].textContent.trim());
+  ok(!names.some(n=>n.includes('예전이')),'old-rule (9x9 easy) record excluded from easy ranking');
   ok(names[0].includes('빠른이') && names[1].includes('김하늘') && names.length===3,'easy ranking order by record: '+names.join(' | '));
   ok($('.podium') && $('#rank-body tr.me'),'podium + my row highlighted');
   click('.mode-tab[data-tab="overall"]'); await wait(80);
@@ -115,7 +125,7 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($('.assign-note'),'assigned note shown');
   store[cfgKey].assignedLevel=4;
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
-  ok($('.mode-tab[data-mode="practice"]').disabled && $$('.mode-tab:disabled').length===1 && $$('#board .cell').length===81,'assigned Lv.4 → only practice locked, starts 9x9');
+  ok($('.mode-tab[data-mode="practice"]').disabled && $$('.mode-tab:disabled').length===1 && $$('#board .cell').length===16,'assigned Lv.4 → only practice locked, starts last mode (easy 4x4)');
   click('#nav-rank'); await wait(100);
   click('.mode-tab[data-tab="overall"]'); await wait(80);
   ok($$('#rank-body tbody tr').length===3,'top3 visibility applied to student ranking');

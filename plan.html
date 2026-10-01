@@ -372,7 +372,7 @@
         <ul class="plain">
           <li>이름 + 학급 + 아바타 이모지 선택 후 바로 시작 (회원가입 없음)</li>
           <li>첫 방문 시 규칙 설명(Lv.0) 1회 안내, 학습 사다리는 '연습' 탭에서 진행</li>
-          <li>난이도 4단계 — 쉬움 / 보통 / 어려움 / 전문가, <b style="color:var(--ink)">처음부터 모두 개방</b></li>
+          <li>난이도 4단계 — 쉬움 4×4 / 보통 6×6 / 어려움 9×9 / 전문가 9×9(단서 더 적게), <b style="color:var(--ink)">처음부터 모두 개방</b></li>
           <li><b style="color:var(--ink)">게임 화면 안의 난이도 탭</b>으로 즉시 전환 + 옆에 '이 난이도 우리 반 TOP 5'</li>
           <li><b style="color:var(--ink)">난이도별 랭킹</b> — 보정 기록(시간 + 실수×10초 + 힌트×30초) 기준</li>
           <li>콤보·별점(1~3개)·완료 축하 효과·숫자별 남은 개수 표시로 몰입 유도</li>
@@ -503,13 +503,14 @@
 
   <section>
     <div class="sec-head"><span class="sec-num">05</span><h2>난이도 설계</h2></div>
-    <p>표준 스도쿠 생성 관례에 따라 채워진 칸(단서) 수로 난이도를 구분한다. 숫자가 적을수록 후보 추론 단계가 늘어난다. 아래 기준은 <b style="color:var(--ink)">9×9</b> 기준이며, 4×4·6×6은 학습 사다리 Lv.0~3 전용 연습 크기로 별도 난이도 구분 없이 단서 수만 넉넉하게 둔다.</p>
+    <p>대상이 초등학생이므로 <b style="color:var(--ink)">판 크기를 단계적으로 키우는 방식</b>으로 난이도를 나눈다. 같은 9×9 안에서 단서 수만 줄이면 쉬움→보통 사이에서 체감 난이도가 갑자기 뛰기 때문이다(v0.3에서 변경 — v0.2까지는 네 난이도가 모두 9×9, 단서 38/32/27/20칸). 모든 퍼즐은 정답이 하나뿐인지 검증한 뒤 낸다.</p>
     <div class="diff-list">
-      <div class="diff-row"><span class="diff-name">쉬움</span><div class="diff-track"><div class="diff-fill" style="width:84%"></div></div><span class="diff-val">단서 36~40칸</span></div>
-      <div class="diff-row"><span class="diff-name">보통</span><div class="diff-track"><div class="diff-fill" style="width:68%"></div></div><span class="diff-val">단서 30~35칸</span></div>
-      <div class="diff-row"><span class="diff-name">어려움</span><div class="diff-track"><div class="diff-fill" style="width:52%"></div></div><span class="diff-val">단서 25~29칸</span></div>
-      <div class="diff-row"><span class="diff-name">전문가</span><div class="diff-track"><div class="diff-fill" style="width:34%"></div></div><span class="diff-val">단서 17~24칸</span></div>
+      <div class="diff-row"><span class="diff-name">🌱 쉬움</span><div class="diff-track"><div class="diff-fill" style="width:25%"></div></div><span class="diff-val">4×4 · 처음 숫자 8칸 · 힌트 2회</span></div>
+      <div class="diff-row"><span class="diff-name">🌊 보통</span><div class="diff-track"><div class="diff-fill" style="width:50%"></div></div><span class="diff-val">6×6 · 처음 숫자 18칸 · 힌트 3회</span></div>
+      <div class="diff-row"><span class="diff-name">🔥 어려움</span><div class="diff-track"><div class="diff-fill" style="width:75%"></div></div><span class="diff-val">9×9 · 처음 숫자 40칸 · 힌트 5회</span></div>
+      <div class="diff-row"><span class="diff-name">👑 전문가</span><div class="diff-track"><div class="diff-fill" style="width:90%"></div></div><span class="diff-val">9×9 · 처음 숫자 34칸 · 힌트 3회</span></div>
     </div>
+    <p class="note-inline">※ 전문가는 어려움과 같은 9×9에서 처음 숫자를 6칸 줄이고 힌트를 2회 줄인 정도로, 한 단계만 더 어렵게 했다. 판 크기가 바뀌었으므로 v0.2 규칙으로 세운 난이도별 기록(판 크기 정보 없음)은 랭킹에서 제외된다. 종합(XP) 랭킹은 그대로 유지.</p>
   </section>
 
   <section>
@@ -674,7 +675,7 @@
 
   <footer>
     <span>스도쿠 교실 · 프로젝트 계획서</span>
-    <span>v0.2 — 2026-10-01</span>
+    <span>v0.3 — 2026-10-01</span>
   </footer>
 
 </div>

@@ -216,10 +216,12 @@
   .mode-tab:hover:not(:disabled){ border-color:var(--mc); color:var(--mc); }
   .mode-tab.active, .mode-tab.active:hover{ background:var(--mc); border-color:var(--mc); color:var(--on-mc); box-shadow:0 4px 0 rgba(0,0,0,.16); }
   .mode-tab:disabled{ opacity:.42; cursor:not-allowed; }
+  .mode-tab .tab-size{ font-size:11.5px; font-weight:600; opacity:.75; }
   @media (max-width:520px){
     .mode-tabs{ gap:6px; justify-content:stretch; }
     .mode-tabs.left{ justify-content:stretch; }
     .mode-tab{ flex:1 1 0; min-width:0; flex-direction:column; gap:0; padding:6px 4px; font-size:12.5px; border-radius:14px; line-height:1.3; }
+    .mode-tab .tab-size{ font-size:10.5px; }
   }
   .assign-note{ text-align:center; font-size:13px; font-weight:600; color:var(--warm-ink); margin:0 0 4px; }
 
@@ -530,9 +532,11 @@ const TUTORIAL_XP = {1:15,2:25,3:40};
 const TUTORIAL_LABEL = {0:'규칙 알아보기',1:'첫 완주',2:'가이드 모드',3:'홀로서기',4:'사다리 완주'};
 const DIFF_ORDER = ['easy','medium','hard','expert'];
 const DIFF_LABEL = {easy:'쉬움',medium:'보통',hard:'어려움',expert:'전문가'};
-const DIFF_CLUES = {easy:38,medium:32,hard:27,expert:20};
-const DIFF_HINTS = {easy:5,medium:3,hard:2,expert:1};
-const DIFF_XP = {easy:30,medium:50,hard:80,expert:120};
+// 초등학생 대상: 판 크기로 난이도를 나눈다 (쉬움 4×4 → 보통 6×6 → 어려움 9×9 → 전문가 9×9 단서 더 적게)
+const DIFF_SIZE = {easy:4, medium:6, hard:9, expert:9};
+const DIFF_CLUES = {easy:8, medium:18, hard:40, expert:34};
+const DIFF_HINTS = {easy:2, medium:3, hard:5, expert:3};
+const DIFF_XP = {easy:20, medium:35, hard:60, expert:90};
 const MODE_ORDER = ['practice', ...DIFF_ORDER];
 const MODE_META = {
   overall:{emoji:'⭐',label:'종합'}, practice:{emoji:'✏️',label:'연습'},
@@ -707,9 +711,10 @@ async function fetchClassRows(force){
   if(App.profile) rows.push(App.profile);
   return rows;
 }
+// v0.3에서 난이도별 판 크기가 바뀌어, 예전 규칙(모두 9×9)으로 세운 기록은 size가 맞지 않아 제외된다
 function bestOf(r,mode){
   const b = r && r.bests && r.bests[mode];
-  return (b && isFinite(+b.score)) ? b : null;
+  return (b && isFinite(+b.score) && +b.size===DIFF_SIZE[mode]) ? b : null;
 }
 function sortForMode(rows,mode){
   if(mode==='overall') return rows.slice().sort((a,b)=>(+b.totalXP||0)-(+a.totalXP||0));
@@ -903,7 +908,7 @@ function renderHome(){
         <h1>숫자 퍼즐로<br><span class="hl">두뇌 레벨 업!</span> 🚀</h1>
         <p class="lede">이름과 반을 입력하면 바로 시작해요. 원하는 난이도에 도전하고, 우리 반 랭킹에 이름을 올려 보세요!</p>
         <div class="btn-row">${actions}</div>
-        <div class="diff-chips">${DIFF_ORDER.map(d=>`<span class="dchip m-${d}">${MODE_META[d].emoji} ${MODE_META[d].label}</span>`).join('')}</div>
+        <div class="diff-chips">${DIFF_ORDER.map(d=>`<span class="dchip m-${d}">${MODE_META[d].emoji} ${MODE_META[d].label} <small>${DIFF_SIZE[d]}×${DIFF_SIZE[d]}</small></span>`).join('')}</div>
       </div>
       <div class="hero-art" aria-hidden="true">${tiles}</div>
     </section>
@@ -1107,8 +1112,9 @@ function startFreePuzzle(difficulty){
   showLoading('퍼즐을 만드는 중…');
   setTimeout(()=>{
     try{
-      const data = generatePuzzle(9, DIFF_CLUES[difficulty]);
-      beginSession({kind:'free', mode:difficulty, difficulty, size:9, data, hintsMax: DIFF_HINTS[difficulty], autoCandidates:false});
+      const size = DIFF_SIZE[difficulty];
+      const data = generatePuzzle(size, DIFF_CLUES[difficulty]);
+      beginSession({kind:'free', mode:difficulty, difficulty, size, data, hintsMax: DIFF_HINTS[difficulty], autoCandidates:false});
     }finally{ hideLoading(); }
   }, 30);
 }
@@ -1143,14 +1149,14 @@ function renderPlay(){
   const meta = MODE_META[s.mode];
   const stageLabel = s.kind==='tutorial'
     ? `학습 사다리 · LV.${s.level} ${TUTORIAL_LABEL[s.level]} · ${s.size}×${s.size}`
-    : `9×9 · 단서 약 ${DIFF_CLUES[s.difficulty]}칸 · 힌트 ${DIFF_HINTS[s.difficulty]}회`;
+    : `${s.size}×${s.size} · 처음 숫자 ${DIFF_CLUES[s.difficulty]}칸 · 힌트 ${DIFF_HINTS[s.difficulty]}회`;
   const lockedNote = App.assigned ? `<p class="assign-note">📌 선생님이 지정한 단계로 진행 중이에요</p>` : '';
   view.innerHTML = `
     <div class="m-${s.mode}">
       <div class="mode-tabs" role="tablist" aria-label="난이도">
         ${MODE_ORDER.map(m=>{
           const locked=modeLocked(m), on=s.mode===m;
-          return `<button class="mode-tab m-${m} ${on?'active':''}" role="tab" aria-selected="${on}" data-action="switch-mode" data-mode="${m}" ${locked?'disabled title="선생님이 지정한 단계만 할 수 있어요"':''}>${MODE_META[m].emoji} ${MODE_META[m].label}${locked?' 🔒':''}</button>`;
+          return `<button class="mode-tab m-${m} ${on?'active':''}" role="tab" aria-selected="${on}" data-action="switch-mode" data-mode="${m}" ${locked?'disabled title="선생님이 지정한 단계만 할 수 있어요"':''}>${MODE_META[m].emoji} ${MODE_META[m].label}${DIFF_SIZE[m]?`<small class="tab-size">${DIFF_SIZE[m]}×${DIFF_SIZE[m]}</small>`:''}${locked?' 🔒':''}</button>`;
         }).join('')}
       </div>
       ${lockedNote}
@@ -1510,7 +1516,7 @@ function completeSession(){
     const idx=DIFF_ORDER.indexOf(s.difficulty);
     const cur=p.bestDifficulty?DIFF_ORDER.indexOf(p.bestDifficulty):-1;
     if(idx>cur) p.bestDifficulty=s.difficulty;
-    record = { score:recordScore(s.elapsed,s.mistakes,s.hintsTaken), sec:s.elapsed, mistakes:s.mistakes, hints:s.hintsTaken, at:new Date().toISOString() };
+    record = { score:recordScore(s.elapsed,s.mistakes,s.hintsTaken), sec:s.elapsed, mistakes:s.mistakes, hints:s.hintsTaken, size:s.size, at:new Date().toISOString() };
     prevBest = bestOf(p,s.difficulty);
     if(!prevBest || record.score < +prevBest.score){
       p.bests = Object.assign({}, p.bests, {[s.difficulty]:record});
