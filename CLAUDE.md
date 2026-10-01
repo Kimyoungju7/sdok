@@ -161,6 +161,8 @@ npm run deploy         # 운영 배포
 
 ## 운영 이슈
 
+- **작업 폴더는 `C:\Users\USER\projects\sdok`(OneDrive 밖)이다.** 2026-10-01에 OneDrive 폴더(`바탕 화면\claude-test`) 안의 파일이 한꺼번에 사라진 일이 있어, GitHub에서 이곳으로 복구했다. OneDrive 안에서 작업하지 않는다.
+- Firestore 에뮬레이터용 Java는 시스템에 설치되어 있지 않다. 테스트할 때 휴대용 JRE를 받아 PATH에 넣었다.
 - 학교 네트워크가 `claude.ai`를 막아 아티팩트가 안 열리는 경우가 있다. 이때는 Firebase 주소를 쓴다.
 - "페이지를 찾을 수 없음"이 뜨면 대개 아티팩트 공유 설정이 안 됐거나 다른 계정으로 로그인한 경우다.
 - Firebase Authentication은 콘솔에서 "시작하기"를 눌러야 초기화된다. API로 강제로 초기화하면 프로젝트가 Identity Platform(유료 요금제 있음)으로 전환되므로 하지 않는다.
