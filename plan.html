@@ -1,0 +1,672 @@
+<title>스도쿠 교실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper: #FBF9F4;
+    --paper-raised: #FFFFFF;
+    --ink: #1C2430;
+    --ink-soft: #4A5160;
+    --muted: #746C5D;
+    --line: #DED7C6;
+    --line-strong: #BDB295;
+    --accent: #2F6F5E;
+    --accent-ink: #1E4A3F;
+    --accent-soft: #E6EFE9;
+    --warm: #C7622D;
+    --warm-soft: #F6E7DA;
+    --shadow: rgba(28,36,48,0.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper: #14181D;
+      --paper-raised: #1B2129;
+      --ink: #ECE8DD;
+      --ink-soft: #C7C2B4;
+      --muted: #948C78;
+      --line: #2C333D;
+      --line-strong: #3D4653;
+      --accent: #68B79A;
+      --accent-ink: #9ED6BE;
+      --accent-soft: #1D2E29;
+      --warm: #E2905D;
+      --warm-soft: #3A2A1E;
+      --shadow: rgba(0,0,0,0.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper: #14181D;
+    --paper-raised: #1B2129;
+    --ink: #ECE8DD;
+    --ink-soft: #C7C2B4;
+    --muted: #948C78;
+    --line: #2C333D;
+    --line-strong: #3D4653;
+    --accent: #68B79A;
+    --accent-ink: #9ED6BE;
+    --accent-soft: #1D2E29;
+    --warm: #E2905D;
+    --warm-soft: #3A2A1E;
+    --shadow: rgba(0,0,0,0.45);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Pretendard", sans-serif;
+    line-height: 1.7;
+  }
+  .doc{
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 64px 28px 120px;
+  }
+  h1,h2,h3{
+    font-family: "Fraunces", "Noto Serif KR", serif;
+    text-wrap: balance;
+    color: var(--ink);
+  }
+  a{ color: var(--accent-ink); }
+
+  /* ---------- Header ---------- */
+  .masthead{
+    display:flex;
+    align-items:center;
+    gap: 32px;
+    padding-bottom: 36px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 44px;
+    flex-wrap: wrap;
+  }
+  .mast-text{ flex: 1 1 320px; }
+  .eyebrow{
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin: 0 0 10px;
+  }
+  .masthead h1{
+    font-size: clamp(34px, 5vw, 48px);
+    font-weight: 600;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .masthead .sub{
+    color: var(--muted);
+    font-size: 15.5px;
+    max-width: 46ch;
+  }
+  .meta{
+    margin-top: 18px;
+    display:flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .meta b{ color: var(--ink-soft); font-weight: 600; }
+
+  /* decorative sudoku grid — the classic example puzzle */
+  .grid9{
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    width: 198px;
+    height: 198px;
+    border: 2px solid var(--ink);
+    background: var(--paper-raised);
+    box-shadow: 0 10px 24px var(--shadow);
+  }
+  .grid9 .c{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .grid9 .c.given{ color: var(--accent-ink); font-weight: 600; }
+  .grid9 .c:nth-child(9n){ border-right: none; }
+  .grid9 .c:nth-child(n+73){ border-bottom: none; }
+  .grid9 .c.bR{ border-right: 1.5px solid var(--ink); }
+  .grid9 .c.bB{ border-bottom: 1.5px solid var(--ink); }
+
+  /* ---------- Sections ---------- */
+  section{ margin-bottom: 54px; }
+  .sec-head{
+    display:flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec-num{
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--accent-ink);
+    letter-spacing: 0.04em;
+  }
+  .sec-head h2{
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+  }
+  p{ color: var(--ink-soft); margin: 0 0 14px; }
+  .lede{ font-size: 16px; }
+
+  ul.plain{ margin:0; padding-left: 1.2em; color: var(--ink-soft); }
+  ul.plain li{ margin-bottom: 6px; }
+
+  /* feature split */
+  .split{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 620px){ .split{ grid-template-columns: 1fr; } }
+  .card{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 24px;
+  }
+  .card .tag{
+    display:inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .card.student .tag{ background: var(--accent-soft); color: var(--accent-ink); }
+  .card.teacher .tag{ background: var(--warm-soft); color: var(--warm); }
+  .card h3{ font-size: 18px; margin: 0 0 10px; font-weight: 600; }
+
+  /* flow steps */
+  .flow{
+    display:flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow-row{ display:flex; gap:16px; }
+  .flow-row + .flow-row{ margin-top: 2px; }
+  .flow-dot-col{
+    display:flex; flex-direction:column; align-items:center;
+    flex: 0 0 auto; width: 28px;
+  }
+  .flow-dot{
+    width: 9px; height:9px; border-radius: 50%;
+    background: var(--accent);
+    flex: 0 0 auto; margin-top: 6px;
+  }
+  .flow-line{ width:1px; flex:1; background: var(--line-strong); }
+  .flow-body{ padding-bottom: 22px; }
+  .flow-body .step-label{
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px; color: var(--muted); letter-spacing: 0.03em;
+  }
+  .flow-body strong{ display:block; font-size: 15.5px; color: var(--ink); margin: 2px 0 3px; }
+  .flow-body span.d{ color: var(--muted); font-size: 14px; }
+
+  /* table */
+  .tblwrap{ overflow-x:auto; border: 1px solid var(--line); border-radius: 4px; }
+  table{ width:100%; border-collapse: collapse; min-width: 560px; background: var(--paper-raised); }
+  thead th{
+    text-align:left;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line-strong);
+    background: var(--accent-soft);
+  }
+  tbody td{
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14.5px;
+    color: var(--ink-soft);
+    vertical-align: top;
+  }
+  tbody tr:last-child td{ border-bottom: none; }
+  td.mono, th.mono{ font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; color: var(--ink); font-size: 13.5px; }
+
+  /* difficulty bars */
+  .diff-list{ display:flex; flex-direction:column; gap:12px; }
+  .diff-row{ display:grid; grid-template-columns: 88px 1fr 108px; align-items:center; gap:14px; }
+  .diff-name{ font-weight:600; font-size:14.5px; }
+  .diff-track{ height:9px; background: var(--line); border-radius: 5px; overflow:hidden; }
+  .diff-fill{ height:100%; background: var(--accent); border-radius:5px; }
+  .diff-val{ font-family:"IBM Plex Mono", monospace; font-size:12.5px; color:var(--muted); text-align:right; }
+
+  /* timeline */
+  .phase{
+    display:grid;
+    grid-template-columns: 72px 1fr;
+    gap: 20px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .phase:last-child{ border-bottom:none; }
+  .phase-num{
+    font-family:"IBM Plex Mono", monospace;
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--line-strong);
+  }
+  .phase h3{ font-size:16.5px; margin:0 0 4px; font-weight:600; }
+  .phase .dur{
+    font-family:"IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: 10px;
+    white-space: nowrap;
+  }
+  .phase-title-row{ display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin-bottom:6px;}
+
+  /* badges / chips */
+  .chiprow{ display:flex; gap:10px; flex-wrap:wrap; margin: 6px 0 2px; }
+  .chip{
+    display:flex; align-items:baseline; gap:7px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 7px 14px;
+    font-size: 13.5px;
+  }
+  .chip .lv{ font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--muted); }
+  .chip b{ color: var(--ink); }
+
+  /* ranking mock table */
+  .rankwrap{ overflow-x:auto; border:1px solid var(--line); border-radius:4px; }
+  table.rank{ width:100%; border-collapse:collapse; min-width:520px; background:var(--paper-raised); }
+  table.rank thead th{
+    text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--muted); padding:10px 14px; border-bottom:1px solid var(--line-strong);
+    background: var(--warm-soft);
+  }
+  table.rank tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink-soft); }
+  table.rank tbody tr:last-child td{ border-bottom:none; }
+  table.rank td.rk{ font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--warm); width:40px; }
+  table.rank td.nm{ color:var(--ink); font-weight:500; }
+  table.rank td.mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .note-inline{
+    font-size:12.5px; color:var(--muted); margin-top:8px;
+  }
+
+  footer{
+    margin-top: 70px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--muted);
+    display:flex;
+    justify-content: space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    section{ animation: none; }
+  }
+</style>
+
+<div class="doc">
+
+  <div class="masthead">
+    <div class="mast-text">
+      <p class="eyebrow">프로젝트 계획서 · PROJECT PLAN</p>
+      <h1>스도쿠 교실</h1>
+      <p class="sub">학생이 이름을 입력하고 난이도를 선택해 스도쿠에 도전하는 학습용 게임과, 교사가 학생들의 풀이 기록을 한눈에 확인하는 대시보드를 함께 설계합니다. 처음 하는 학생을 위한 단계별 학습, 꾸준함이 쌓이는 누적 기록, 학급별 랭킹을 더했습니다.</p>
+      <div class="meta">
+        <span><b>작성일</b> 2026-10-01</span>
+        <span><b>대상</b> 초·중등 학급</span>
+        <span><b>버전</b> v0.4 — 4×4 연습 크기 추가</span>
+      </div>
+    </div>
+    <div class="grid9" aria-hidden="true">
+      <!-- classic example sudoku, as a working-puzzle motif -->
+      <div class="c given bR">5</div><div class="c given">3</div><div class="c bR"></div><div class="c bR"></div><div class="c given">7</div><div class="c"></div><div class="c bR"></div><div class="c"></div><div class="c"></div>
+      <div class="c given bR">6</div><div class="c"></div><div class="c bR"></div><div class="c given bR">1</div><div class="c given">9</div><div class="c given">5</div><div class="c bR"></div><div class="c"></div><div class="c"></div>
+      <div class="c bR bB"></div><div class="c given bB">9</div><div class="c given bR bB">8</div><div class="c bR bB"></div><div class="c bB"></div><div class="c bB"></div><div class="c bR bB"></div><div class="c given bB">6</div><div class="c bB"></div>
+      <div class="c given bR">8</div><div class="c"></div><div class="c bR"></div><div class="c bR"></div><div class="c given">6</div><div class="c"></div><div class="c bR"></div><div class="c"></div><div class="c given">3</div>
+      <div class="c given bR">4</div><div class="c"></div><div class="c bR"></div><div class="c given bR">8</div><div class="c"></div><div class="c given">3</div><div class="c bR"></div><div class="c"></div><div class="c given">1</div>
+      <div class="c given bR bB">7</div><div class="c bB"></div><div class="c bR bB"></div><div class="c bR bB"></div><div class="c given bB">2</div><div class="c bB"></div><div class="c bR bB"></div><div class="c bB"></div><div class="c given bB">6</div>
+      <div class="c bR"></div><div class="c given">6</div><div class="c bR"></div><div class="c bR"></div><div class="c"></div><div class="c"></div><div class="c bR given">2</div><div class="c given">8</div><div class="c"></div>
+      <div class="c bR"></div><div class="c"></div><div class="c bR"></div><div class="c given bR">4</div><div class="c given">1</div><div class="c given">9</div><div class="c bR"></div><div class="c"></div><div class="c given">5</div>
+      <div class="c bR"></div><div class="c"></div><div class="c bR"></div><div class="c bR"></div><div class="c given">8</div><div class="c"></div><div class="c bR"></div><div class="c given">7</div><div class="c given">9</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>프로젝트 개요</h2></div>
+    <p class="lede">스도쿠는 규칙이 단순하면서도 논리적 사고력을 기르는 데 효과적인 퍼즐이다. 이 프로젝트는 학생이 혼자서도 꾸준히 도전할 수 있는 <b style="color:var(--ink)">웹 기반 스도쿠 게임</b>과, 교사가 반 전체의 참여도와 실력 추이를 파악할 수 있는 <b style="color:var(--ink)">대시보드</b>를 한 세트로 구축하는 것을 목표로 한다.</p>
+    <ul class="plain">
+      <li><b style="color:var(--ink)">목적</b> — 수업 전후 자투리 시간이나 과제용으로 활용 가능한 자가 학습 도구 제공</li>
+      <li><b style="color:var(--ink)">대상</b> — 별도 로그인 없이 이름만으로 참여하는 학생, 결과를 확인하는 교사</li>
+      <li><b style="color:var(--ink)">핵심 가치</b> — 진입장벽 없는 시작, 난이도의 세분화, 교사 관점의 가시성</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>핵심 기능</h2></div>
+    <div class="split">
+      <div class="card student">
+        <span class="tag">학생용</span>
+        <h3>플레이 화면</h3>
+        <ul class="plain">
+          <li>이름 + 학급 입력 후 바로 시작 (회원가입 없음)</li>
+          <li>첫 방문 시 단계별 학습(튜토리얼) 자동 안내</li>
+          <li>난이도 4단계 — 쉬움 / 보통 / 어려움 / 전문가</li>
+          <li>9×9 보드, 숫자패드 또는 키보드 입력</li>
+          <li>경과 시간 타이머, 실수 횟수 카운터, 힌트</li>
+          <li>완료할수록 쌓이는 레벨·경험치(XP)·뱃지</li>
+          <li>재방문 시 이전 기록을 이어서 성장</li>
+        </ul>
+      </div>
+      <div class="card teacher">
+        <span class="tag">교사용</span>
+        <h3>대시보드</h3>
+        <ul class="plain">
+          <li>교사 전용 접속 화면(비밀번호 1개로 간단 보호)</li>
+          <li>학생별 전체 풀이 기록 목록 (이름·날짜·난이도순 정렬)</li>
+          <li>난이도별 평균 소요 시간·완료율 통계</li>
+          <li>학생 개인 리포트 — 시도 추이, 힌트 의존도, 레벨 성장</li>
+          <li><b style="color:var(--ink)">학습 단계 일괄 지정</b> — 학급 전체를 같은 보드 크기·레벨로 시작</li>
+          <li><b style="color:var(--ink)">학급별 랭킹 보드</b> — 공개 범위 설정 가능</li>
+          <li>기간/난이도 필터링, CSV로 내보내기</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>사용자 흐름</h2></div>
+    <div class="split">
+      <div>
+        <p style="font-weight:600;color:var(--ink);margin-bottom:14px;">학생 흐름</p>
+        <div class="flow">
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 1</span><strong>이름 + 학급 입력</strong><span class="d">이름과 반을 입력하면 기존 기록이 있으면 자동으로 이어받음</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 2</span><strong>(처음이면) 학습 단계</strong><span class="d">교사가 일괄 지정했으면 그 보드 크기·레벨로 바로 시작, 아니면 학생이 직접 6×6/9×9와 레벨 선택</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 3</span><strong>난이도 선택 후 풀이</strong><span class="d">현재 레벨에 맞는 추천 난이도 표시, 타이머·힌트 동작</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 4</span><strong>결과 저장 · 성장</strong><span class="d">XP·레벨이 누적되고, 학급 랭킹과 교사 대시보드에 반영</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p style="font-weight:600;color:var(--ink);margin-bottom:14px;">교사 흐름</p>
+        <div class="flow">
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 1</span><strong>대시보드 접속</strong><span class="d">간단한 접속 코드 또는 비밀번호 입력</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 2 · 선택</span><strong>학습 단계 일괄 지정</strong><span class="d">오늘 수업에서 전체 학생이 시작할 보드 크기·레벨을 지정 (지정 안 하면 학생 자율 선택 유지)</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 3</span><strong>전체 현황 · 랭킹 확인</strong><span class="d">참여 학생 수, 난이도 분포, 학급별 랭킹 보드 요약</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 4</span><strong>학생별 상세 조회</strong><span class="d">이름 클릭 시 개인별 시도 이력과 추이 확인</span></div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div></div>
+            <div class="flow-body"><span class="step-label">STEP 5</span><strong>내보내기</strong><span class="d">필요 시 CSV로 다운로드해 평가·상담 자료로 활용</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>단계별 학습 설계</h2></div>
+    <p>처음 스도쿠를 접하는 학생은 규칙을 모른 채 빈 보드와 마주하면 바로 이탈하기 쉽다. 첫 방문자에게는 아래 <b style="color:var(--ink)">학습 사다리</b>를 자동으로 안내하고, 완료 기준을 통과하면 다음 단계가 자연스럽게 해금되도록 한다. 연습 단계는 <b style="color:var(--ink)">4×4</b>(2×2 박스, 최소 단위)·<b style="color:var(--ink)">6×6</b>(2×3 박스, 입문용)·<b style="color:var(--ink)">9×9</b>(표준) 세 가지 보드 크기 중 고를 수 있다.</p>
+
+    <p style="font-weight:600;color:var(--ink);margin:22px 0 10px;font-size:14.5px;">시작 방식 두 가지</p>
+    <div class="split">
+      <div class="card student">
+        <span class="tag">자율 모드 · 기본값</span>
+        <h3>학생 혼자 할 때</h3>
+        <ul class="plain">
+          <li>첫 접속 시 보드 크기(4×4/6×6/9×9)와 시작 레벨을 직접 선택</li>
+          <li>재방문 시 저장된 레벨·크기에서 바로 이어서 진행</li>
+          <li>과제·자습·방과후 등 개별 학습 상황에 적합</li>
+        </ul>
+      </div>
+      <div class="card teacher">
+        <span class="tag">지정 모드</span>
+        <h3>교사가 일괄 지정할 때</h3>
+        <ul class="plain">
+          <li>교사가 대시보드에서 학급 전체에 적용할 보드 크기·레벨을 한 번에 지정</li>
+          <li>지정이 켜져 있는 동안 학생 화면의 선택 단계는 생략되고 바로 그 단계로 시작</li>
+          <li>수업 중 다같이 같은 지점에서 출발해야 할 때 사용, 해제 시 자율 모드로 복귀</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="font-weight:600;color:var(--ink);margin:26px 0 10px;font-size:14.5px;">학습 사다리</p>
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+        <div class="flow-body"><span class="step-label">LV. 0 · 규칙 알아보기</span><strong>인터랙티브 설명</strong><span class="d">"가로줄·세로줄·박스 안에 같은 숫자가 올 수 없다"를 4×4 보드로 직접 눌러보며 익힘</span></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+        <div class="flow-body"><span class="step-label">LV. 1 · 크기 선택 &amp; 연습</span><strong>4×4 · 6×6 · 9×9 중 연습 퍼즐 선택</strong><span class="d">자율 모드면 학생이 선택, 지정 모드면 교사가 정한 크기로 진행 — 완주 경험 제공이 목적. 가장 작은 4×4부터 시작해도 되고, 자신 있으면 바로 큰 크기로 가도 됨</span></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+        <div class="flow-body"><span class="step-label">LV. 2 · 가이드 모드</span><strong>쉬움 난이도, 힌트 무제한</strong><span class="d">오답 즉시 표시 + 후보 숫자 자동 표시로 추론 과정을 체득, 선택한 크기 그대로 유지</span></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div><div class="flow-line"></div></div>
+        <div class="flow-body"><span class="step-label">LV. 3 · 홀로서기</span><strong>쉬움 난이도, 힌트 3회 제한</strong><span class="d">자동 후보 표시를 끄고 스스로 추론하도록 전환</span></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-dot-col"><div class="flow-dot" style="background:var(--warm)"></div></div>
+        <div class="flow-body"><span class="step-label">LV. 4 · 자유 도전 해금</span><strong>9×9 표준, 보통 이상 자유 선택</strong><span class="d">6×6으로 시작했어도 이 지점부터는 9×9로 전환되며, 보통→어려움→전문가를 자유롭게 고르되 '다음 추천 난이도' 배지로 유도</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">05</span><h2>난이도 설계</h2></div>
+    <p>표준 스도쿠 생성 관례에 따라 채워진 칸(단서) 수로 난이도를 구분한다. 숫자가 적을수록 후보 추론 단계가 늘어난다. 아래 기준은 <b style="color:var(--ink)">9×9</b> 기준이며, 4×4·6×6은 학습 사다리 Lv.0~3 전용 연습 크기로 별도 난이도 구분 없이 단서 수만 넉넉하게 둔다.</p>
+    <div class="diff-list">
+      <div class="diff-row"><span class="diff-name">쉬움</span><div class="diff-track"><div class="diff-fill" style="width:84%"></div></div><span class="diff-val">단서 36~40칸</span></div>
+      <div class="diff-row"><span class="diff-name">보통</span><div class="diff-track"><div class="diff-fill" style="width:68%"></div></div><span class="diff-val">단서 30~35칸</span></div>
+      <div class="diff-row"><span class="diff-name">어려움</span><div class="diff-track"><div class="diff-fill" style="width:52%"></div></div><span class="diff-val">단서 25~29칸</span></div>
+      <div class="diff-row"><span class="diff-name">전문가</span><div class="diff-track"><div class="diff-fill" style="width:34%"></div></div><span class="diff-val">단서 17~24칸</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">06</span><h2>누적 성장 · 레벨 시스템</h2></div>
+    <p>풀이할 때마다 경험치(XP)가 쌓여 레벨이 오르고, 일정 레벨에 도달하면 칭호(뱃지)가 부여된다. 난이도가 높을수록, 실수·힌트가 적을수록 더 많은 XP를 지급해 '정확하게 푸는 것'도 보상한다.</p>
+    <div class="chiprow">
+      <div class="chip"><span class="lv">Lv.1-3</span><b>새싹</b></div>
+      <div class="chip"><span class="lv">Lv.4-7</span><b>숙련자</b></div>
+      <div class="chip"><span class="lv">Lv.8-12</span><b>고수</b></div>
+      <div class="chip"><span class="lv">Lv.13+</span><b>마스터</b></div>
+      <div class="chip"><span class="lv">연속 참여</span><b>🔥 스트릭 보너스</b></div>
+    </div>
+    <p style="margin-top:14px">연속 참여일(스트릭)이 끊기지 않도록 하루 1회 접속만으로도 소량의 XP를 지급해, 매일 조금씩이라도 들여다보는 습관을 유도한다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">07</span><h2>데이터 모델</h2></div>
+    <p>기록은 두 종류로 나눈다. <b style="color:var(--ink)">세션 기록</b>은 한 번의 풀이마다 쌓이는 로그, <b style="color:var(--ink)">누적 프로필</b>은 학생별로 하나씩만 존재하며 방문할 때마다 갱신된다. 식별자는 로그인 대신 <span class="mono" style="font-size:13.5px">이름 + 학급</span> 조합을 사용한다.</p>
+    <p style="font-weight:600;color:var(--ink);margin:18px 0 10px;font-size:14.5px;">세션 기록 (풀이할 때마다 1건)</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>필드</th><th>설명</th><th class="mono">예시</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">studentName</td><td>학생이 입력한 이름</td><td class="mono">"김하늘"</td></tr>
+          <tr><td class="mono">classroom</td><td>학급(반) 식별값 — 교사가 배포한 반 코드</td><td class="mono">"3-2"</td></tr>
+          <tr><td class="mono">difficulty</td><td>선택한 난이도</td><td class="mono">"hard"</td></tr>
+          <tr><td class="mono">puzzleSeed</td><td>생성된 퍼즐의 식별 시드</td><td class="mono">884213</td></tr>
+          <tr><td class="mono">startedAt / finishedAt</td><td>시작·종료 시각</td><td class="mono">ISO 8601</td></tr>
+          <tr><td class="mono">durationSec</td><td>총 소요 시간(초)</td><td class="mono">312</td></tr>
+          <tr><td class="mono">mistakeCount</td><td>오답 입력 횟수</td><td class="mono">4</td></tr>
+          <tr><td class="mono">hintCount</td><td>힌트 사용 횟수</td><td class="mono">1</td></tr>
+          <tr><td class="mono">completed</td><td>끝까지 완료했는지 여부</td><td class="mono">true</td></tr>
+          <tr><td class="mono">xpEarned</td><td>이 세션에서 획득한 경험치</td><td class="mono">40</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-weight:600;color:var(--ink);margin:22px 0 10px;font-size:14.5px;">누적 프로필 (학생당 1건, 매번 갱신)</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>필드</th><th>설명</th><th class="mono">예시</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">studentKey</td><td>이름+학급을 합친 식별 키</td><td class="mono">"김하늘·3-2"</td></tr>
+          <tr><td class="mono">level / totalXP</td><td>현재 레벨과 누적 경험치</td><td class="mono">7 / 1,240</td></tr>
+          <tr><td class="mono">totalCompleted</td><td>완료한 퍼즐 누적 개수</td><td class="mono">23</td></tr>
+          <tr><td class="mono">streakDays</td><td>연속 참여일</td><td class="mono">5</td></tr>
+          <tr><td class="mono">unlockedDifficulty</td><td>현재까지 해금된 최고 난이도</td><td class="mono">"expert"</td></tr>
+          <tr><td class="mono">tutorialLevel</td><td>학습 사다리 진행 단계 (0~4)</td><td class="mono">3</td></tr>
+          <tr><td class="mono">boardSizePref</td><td>직접 선택했던 연습 보드 크기</td><td class="mono">6</td></tr>
+          <tr><td class="mono">badges</td><td>획득한 칭호 목록</td><td class="mono">["새싹","숙련자"]</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-weight:600;color:var(--ink);margin:22px 0 10px;font-size:14.5px;">학급 설정 (학급당 1건 — 교사의 일괄 지정 상태)</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>필드</th><th>설명</th><th class="mono">예시</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">classroom</td><td>학급(반) 식별값</td><td class="mono">"3-2"</td></tr>
+          <tr><td class="mono">isAssigned</td><td>일괄 지정이 켜져 있는지 여부</td><td class="mono">true</td></tr>
+          <tr><td class="mono">assignedBoardSize</td><td>지정된 보드 크기</td><td class="mono">9</td></tr>
+          <tr><td class="mono">assignedLevel</td><td>지정된 학습 사다리 단계</td><td class="mono">2</td></tr>
+          <tr><td class="mono">assignedAt</td><td>지정 시각</td><td class="mono">ISO 8601</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note-inline">학생 화면은 접속 시 자신이 속한 학급의 <span class="mono" style="font-size:12.5px">isAssigned</span> 값을 먼저 확인해, 켜져 있으면 선택 화면 없이 지정된 크기·단계로 바로 시작한다. ※ localStorage 기반 1차 버전에서는 같은 브라우저에서만 이어진다. 다른 기기에서도 이어가려면 서버 저장이 필요하다 — 뒤의 '기술 스택 제안' 참고.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">08</span><h2>학급별 랭킹 보드</h2></div>
+    <p>랭킹은 '누가 가장 빨리 풀었는가'보다 <b style="color:var(--ink)">꾸준함과 성장</b>을 반영하도록 총 누적 XP를 기본 산정 기준으로 삼는다. 교사는 공개 범위(상위 3명 / 상위 50% / 전체)를 학급 사정에 맞게 설정할 수 있어, 하위권 학생이 공개로 인해 위축되지 않도록 배려한다.</p>
+    <p style="font-weight:600;color:var(--ink);margin:16px 0 10px;font-size:14.5px;">미리보기 — 3-2반 랭킹 보드 (예시 데이터)</p>
+    <div class="rankwrap">
+      <table class="rank">
+        <thead><tr><th>순위</th><th>이름</th><th>레벨</th><th class="mono">누적 XP</th><th class="mono">완료 수</th><th class="mono">연속참여</th></tr></thead>
+        <tbody>
+          <tr><td class="rk">1</td><td class="nm">이서준</td><td>고수 · Lv.9</td><td class="mono">2,180</td><td class="mono">31</td><td class="mono">7일</td></tr>
+          <tr><td class="rk">2</td><td class="nm">박하은</td><td>숙련자 · Lv.6</td><td class="mono">1,540</td><td class="mono">24</td><td class="mono">4일</td></tr>
+          <tr><td class="rk">3</td><td class="nm">최도윤</td><td>숙련자 · Lv.5</td><td class="mono">1,290</td><td class="mono">19</td><td class="mono">6일</td></tr>
+          <tr><td class="rk">⋯</td><td colspan="5" style="color:var(--muted)">공개 범위 설정에 따라 이하 비공개 또는 전체 표시</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note-inline">※ 학급 간 비교가 필요하면 '학급 평균 XP' 같은 반 단위 지표를 별도로 제공해, 개인 노출 없이도 담임 간 비교가 가능하게 한다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">09</span><h2>퍼즐 생성 방식</h2></div>
+    <p>① 백트래킹으로 완성된 정답판 하나를 무작위 생성 → ② 대칭 위치의 칸을 하나씩 비워가며 해가 유일한지 검증 → ③ 목표 난이도의 단서 수에 도달하면 멈춘다. 유일해 검증에 과도한 시간이 걸리면 직전 단계의 판을 채택해 생성 지연을 방지한다.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">10</span><h2>기술 스택 제안</h2></div>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>영역</th><th>1차(간소화)</th><th>확장 시</th></tr></thead>
+        <tbody>
+          <tr><td>프론트엔드</td><td>HTML / CSS / JavaScript</td><td>React 등 컴포넌트 프레임워크</td></tr>
+          <tr><td>퍼즐 로직</td><td>자체 구현 백트래킹 생성기</td><td>동일 로직 재사용 + 서버 사전 생성 캐시</td></tr>
+          <tr><td>기록 저장</td><td>브라우저 localStorage (같은 기기에서만 누적)</td><td>서버 DB(예: SQLite/Firebase) — 기기 간 동기화 및 학급 랭킹 집계에 필수</td></tr>
+          <tr><td>교사 인증</td><td>공유 비밀번호 1개</td><td>교사별 로그인 계정</td></tr>
+          <tr><td>랭킹 집계</td><td>클라이언트에서 로컬 데이터 정렬(같은 기기 한정)</td><td>서버에서 학급 단위로 집계·캐싱 후 주기 갱신</td></tr>
+          <tr><td>배포</td><td>정적 호스팅(단일 페이지)</td><td>백엔드 포함 호스팅</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">11</span><h2>개발 일정</h2></div>
+    <div class="phase">
+      <div class="phase-num">01</div>
+      <div>
+        <div class="phase-title-row"><h3>코어 게임 엔진</h3><span class="dur">1주차</span></div>
+        <p style="margin:0">퍼즐 생성·검증 알고리즘, 9×9 보드 UI, 입력·채점 로직 구현</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">02</div>
+      <div>
+        <div class="phase-title-row"><h3>학생 화면 + 단계별 학습 모드</h3><span class="dur">2~3주차</span></div>
+        <p style="margin:0">이름·학급 입력, 4×4/6×6/9×9 보드 엔진, 학습 사다리(Lv.0~4) 튜토리얼, 자율/지정 모드 분기, 타이머·힌트, 결과 저장 연동</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">03</div>
+      <div>
+        <div class="phase-title-row"><h3>누적 프로필 · 레벨/뱃지</h3><span class="dur">4주차</span></div>
+        <p style="margin:0">XP·레벨 계산, 뱃지 지급, 재방문 시 기록 이어받기 로직 구현</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">04</div>
+      <div>
+        <div class="phase-title-row"><h3>교사 대시보드 + 학급 랭킹</h3><span class="dur">5주차</span></div>
+        <p style="margin:0">기록 목록, 통계 요약, 개인 리포트, 학습 단계 일괄 지정 UI, 랭킹 보드(공개 범위 설정 포함), CSV 내보내기</p>
+      </div>
+    </div>
+    <div class="phase">
+      <div class="phase-num">05</div>
+      <div>
+        <div class="phase-title-row"><h3>테스트 및 배포</h3><span class="dur">6주차</span></div>
+        <p style="margin:0">실제 학급 대상 시범 운영, 피드백 반영, 호스팅 배포</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="sec-num">12</span><h2>향후 확장</h2></div>
+    <ul class="plain">
+      <li>학교 전체 랭킹 — 여러 학급을 아우르는 전교 보드</li>
+      <li>오답 패턴을 분석해 다음 추천 난이도를 자동으로 조정</li>
+      <li>주간 챌린지 미션(이번 주 지정 퍼즐 함께 풀기)</li>
+      <li>인쇄용 프린트 모드(오프라인 수업 활용)</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>스도쿠 교실 · 프로젝트 계획서</span>
+    <span>v0.1 — 2026-10-01</span>
+  </footer>
+
+</div>

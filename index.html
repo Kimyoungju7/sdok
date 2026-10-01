@@ -1,0 +1,1207 @@
+<title>스도쿠 교실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#FBF9F4; --paper-raised:#FFFFFF; --paper-sunk:#F1ECE1;
+    --ink:#1C2430; --ink-soft:#4A5160; --muted:#746C5D;
+    --line:#DED7C6; --line-strong:#BDB295;
+    --accent:#2F6F5E; --accent-ink:#1E4A3F; --accent-soft:#E6EFE9;
+    --warm:#C7622D; --warm-ink:#8C431C; --warm-soft:#F6E7DA;
+    --bad:#B3433B; --bad-soft:#F7E3E0;
+    --given:#1C2430; --userval:#1E4A3F;
+    --shadow: rgba(28,36,48,.14);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#14181D; --paper-raised:#1B2129; --paper-sunk:#10141A;
+      --ink:#ECE8DD; --ink-soft:#C7C2B4; --muted:#948C78;
+      --line:#2C333D; --line-strong:#3D4653;
+      --accent:#68B79A; --accent-ink:#9ED6BE; --accent-soft:#1D2E29;
+      --warm:#E2905D; --warm-ink:#F2B98B; --warm-soft:#3A2A1E;
+      --bad:#E2756B; --bad-soft:#3A2422;
+      --given:#ECE8DD; --userval:#9ED6BE;
+      --shadow: rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#14181D; --paper-raised:#1B2129; --paper-sunk:#10141A;
+    --ink:#ECE8DD; --ink-soft:#C7C2B4; --muted:#948C78;
+    --line:#2C333D; --line-strong:#3D4653;
+    --accent:#68B79A; --accent-ink:#9ED6BE; --accent-soft:#1D2E29;
+    --warm:#E2905D; --warm-ink:#F2B98B; --warm-soft:#3A2A1E;
+    --bad:#E2756B; --bad-soft:#3A2422;
+    --given:#ECE8DD; --userval:#9ED6BE;
+    --shadow: rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans KR","Pretendard",sans-serif;
+    line-height:1.55;
+  }
+  h1,h2,h3{ font-family:"Fraunces","Noto Serif KR",serif; text-wrap:balance; margin:0; }
+  button{ font-family:inherit; }
+  .mono{ font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; }
+
+  #app{ max-width:980px; margin:0 auto; min-height:100%; display:flex; flex-direction:column; }
+
+  /* ---------- top bar ---------- */
+  #topbar{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 20px; border-bottom:2px solid var(--ink);
+    background:var(--paper);
+  }
+  .brand{ font-family:"Fraunces",serif; font-weight:600; font-size:19px; display:flex; align-items:center; gap:8px; }
+  #topbar-info{ flex:1; display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:13px; color:var(--muted); }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--accent-soft); color:var(--accent-ink);
+    border-radius:20px; padding:4px 12px; font-size:12.5px; font-weight:600;
+  }
+  .pill.warm{ background:var(--warm-soft); color:var(--warm-ink); }
+  .ghost-btn{
+    background:transparent; border:1px solid var(--line-strong); color:var(--ink-soft);
+    border-radius:7px; padding:7px 14px; font-size:13px; cursor:pointer;
+  }
+  .ghost-btn:hover{ border-color:var(--accent); color:var(--accent-ink); }
+  button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+
+  main#view{ flex:1; padding:30px 20px 60px; }
+
+  /* ---------- generic pieces ---------- */
+  .center-wrap{ max-width:560px; margin:0 auto; }
+  .hero-title{ font-size:clamp(26px,4.5vw,36px); font-weight:600; margin-bottom:10px; }
+  .lede{ color:var(--muted); font-size:15px; margin-bottom:26px; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:9px; padding:13px 22px; font-size:15px; font-weight:600;
+    cursor:pointer; transition:transform .08s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ background:var(--accent-ink); }
+  .btn-warm{ background:var(--warm); color:#fff; }
+  .btn-warm:hover{ background:var(--warm-ink); }
+  .btn-outline{ background:transparent; border:1.5px solid var(--line-strong); color:var(--ink); }
+  .btn-outline:hover{ border-color:var(--accent); color:var(--accent-ink); }
+  .btn-block{ width:100%; }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+  .field input, .field select{
+    width:100%; padding:12px 14px; border-radius:8px; border:1.5px solid var(--line);
+    background:var(--paper-raised); color:var(--ink); font-size:15px;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--accent); }
+  .field .hint{ font-size:12px; color:var(--muted); margin-top:5px; }
+  .err-text{ color:var(--bad); font-size:13px; margin-top:8px; }
+
+  .card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:22px; }
+  .choice-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+  .choice-card{
+    background:var(--paper-raised); border:1.5px solid var(--line); border-radius:10px;
+    padding:20px 18px; cursor:pointer; text-align:left; transition:border-color .12s, transform .08s;
+  }
+  .choice-card:hover{ border-color:var(--accent); transform:translateY(-2px); }
+  .choice-card h3{ font-size:18px; margin-bottom:5px; }
+  .choice-card p{ margin:0; font-size:13px; color:var(--muted); }
+  .choice-card .size-swatch{
+    display:inline-grid; gap:2px; margin-bottom:12px; background:var(--line-strong); padding:2px; border-radius:3px;
+  }
+  .size-swatch div{ width:7px; height:7px; background:var(--paper-sunk); }
+  .choice-card .badge-rec{
+    display:inline-block; margin-top:10px; font-size:11px; font-weight:700; letter-spacing:.04em;
+    background:var(--warm-soft); color:var(--warm-ink); padding:3px 9px; border-radius:20px;
+  }
+
+  /* ---------- home ---------- */
+  .home-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:30px; }
+  @media (max-width:560px){ .home-grid{ grid-template-columns:1fr; } }
+  .home-card{
+    background:var(--paper-raised); border:1.5px solid var(--line); border-radius:14px;
+    padding:28px 24px; text-align:left; cursor:pointer; transition:transform .1s, box-shadow .1s;
+  }
+  .home-card:hover{ transform:translateY(-3px); box-shadow:0 10px 24px var(--shadow); border-color:var(--accent); }
+  .home-card .ico{ font-size:30px; }
+  .home-card h2{ font-size:21px; margin:10px 0 6px; }
+  .home-card p{ margin:0; color:var(--muted); font-size:13.5px; }
+  .home-card.teacher:hover{ border-color:var(--warm); }
+
+  /* ---------- rules demo ---------- */
+  .demo4{ display:grid; grid-template-columns:repeat(4,44px); grid-template-rows:repeat(4,44px); gap:0; border:2px solid var(--ink); margin:18px auto; width:max-content; }
+  .demo4 div{ display:flex; align-items:center; justify-content:center; border:1px solid var(--line); font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:17px; background:var(--paper-raised); }
+  .rule-step{ display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--line); align-items:flex-start; }
+  .rule-step:last-child{ border-bottom:none; }
+  .rule-step .n{ font-family:"IBM Plex Mono",monospace; color:var(--accent-ink); font-weight:700; flex:0 0 auto; }
+
+  /* ---------- play screen ---------- */
+  .play-wrap{ display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; justify-content:center; }
+  .board-col{ flex:1 1 360px; display:flex; flex-direction:column; align-items:center; }
+  .side-col{ flex:0 0 240px; display:flex; flex-direction:column; gap:14px; }
+  @media (max-width:720px){ .side-col{ flex:1 1 100%; } }
+
+  .stat-row{ display:flex; gap:10px; flex-wrap:wrap; }
+  .stat-tile{
+    flex:1; min-width:90px; background:var(--paper-raised); border:1px solid var(--line); border-radius:9px;
+    padding:10px 12px;
+  }
+  .stat-tile .lab{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  .stat-tile .val{ font-family:"IBM Plex Mono",monospace; font-size:19px; font-weight:600; margin-top:2px; }
+  .stat-tile.bad .val{ color:var(--bad); }
+
+  #board{
+    display:grid; border:3px solid var(--ink); background:var(--ink);
+    gap:1px; width:min(92vw,420px); height:min(92vw,420px); border-radius:3px; overflow:hidden;
+  }
+  .cell{
+    background:var(--paper-raised); display:flex; align-items:center; justify-content:center;
+    position:relative; cursor:pointer; user-select:none;
+  }
+  .cell .v{ font-family:"IBM Plex Mono",monospace; font-weight:700; }
+  .cell.given .v{ color:var(--given); }
+  .cell.user .v{ color:var(--userval); }
+  .cell.error .v{ color:var(--bad); }
+  .cell.selected{ background:var(--accent-soft); }
+  .cell.peer{ background:var(--paper-sunk); }
+  .cell.error{ background:var(--bad-soft); }
+  .cell.hinted .v{ text-decoration:underline wavy var(--warm) 1.5px; }
+  .notes-grid{ position:absolute; inset:3px; display:grid; }
+  .notes-grid span{ display:flex; align-items:center; justify-content:center; font-family:"IBM Plex Mono",monospace; color:var(--muted); font-weight:500; }
+
+  .pad{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin-top:16px; }
+  .pad button{
+    min-width:40px; height:40px; border-radius:8px; border:1.5px solid var(--line-strong);
+    background:var(--paper-raised); color:var(--ink); font-family:"IBM Plex Mono",monospace; font-size:16px; font-weight:600; cursor:pointer;
+  }
+  .pad button:hover{ border-color:var(--accent); color:var(--accent-ink); }
+  .toolrow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; justify-content:center; }
+  .toolrow button{ font-size:12.5px; padding:8px 12px; border-radius:7px; border:1.5px solid var(--line-strong); background:var(--paper-raised); color:var(--ink-soft); cursor:pointer; }
+  .toolrow button.active{ border-color:var(--accent); color:var(--accent-ink); background:var(--accent-soft); }
+
+  .stage-tag{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
+
+  /* ---------- result ---------- */
+  .result-xp{ text-align:center; padding:30px 20px; }
+  .xp-burst{ font-family:"Fraunces",serif; font-size:46px; font-weight:700; color:var(--accent-ink); }
+  .levelbar-track{ height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin:14px 0 6px; }
+  .levelbar-fill{ height:100%; background:var(--accent); }
+
+  /* ---------- rank table ---------- */
+  .tblwrap{ overflow-x:auto; border:1px solid var(--line); border-radius:8px; }
+  table{ width:100%; border-collapse:collapse; min-width:460px; background:var(--paper-raised); }
+  thead th{
+    text-align:left; font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--muted); padding:10px 14px; border-bottom:1px solid var(--line-strong); background:var(--accent-soft);
+  }
+  tbody td{ padding:10px 14px; border-bottom:1px solid var(--line); font-size:13.5px; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.me{ background:var(--warm-soft); }
+  tbody tr.clickable{ cursor:pointer; }
+  tbody tr.clickable:hover{ background:var(--paper-sunk); }
+  td.rk{ font-family:"IBM Plex Mono",monospace; font-weight:700; color:var(--warm); width:36px; }
+
+  .section-title{ font-size:17px; font-weight:600; margin:30px 0 12px; }
+  .section-title:first-child{ margin-top:0; }
+
+  .teacher-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:10px; }
+  .assign-form{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .assign-form .field{ margin-bottom:0; min-width:130px; }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+    background:var(--ink); color:var(--paper); padding:11px 20px; border-radius:9px; font-size:13.5px;
+    box-shadow:0 10px 24px var(--shadow); z-index:50; max-width:90vw;
+  }
+  .loading-overlay{
+    position:fixed; inset:0; background:rgba(20,24,29,.55); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; z-index:60; color:#fff;
+  }
+  .spinner{ width:38px; height:38px; border-radius:50%; border:4px solid rgba(255,255,255,.3); border-top-color:#fff; animation:spin .8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce){ .spinner{ animation:none; } .home-card{ transition:none; } }
+
+  [hidden]{ display:none !important; }
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <div class="brand">🧩 <span>스도쿠 교실</span></div>
+    <div id="topbar-info"></div>
+    <button class="ghost-btn" id="btn-switch" hidden data-action="switch-user">다른 사람</button>
+    <button class="ghost-btn" id="btn-home" hidden data-action="go-home">홈</button>
+  </header>
+  <main id="view"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+<div class="loading-overlay" id="loading" hidden><div class="spinner"></div><p id="loading-text">퍼즐 만드는 중…</p></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ========================= Sudoku engine ========================= */
+function boxDims(n){
+  if(n===4) return {bw:2,bh:2};
+  if(n===6) return {bw:3,bh:2};
+  return {bw:3,bh:3};
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+function isSafe(g,n,bw,bh,r,c,val){
+  for(let i=0;i<n;i++){ if(g[r][i]===val) return false; if(g[i][c]===val) return false; }
+  const br0=Math.floor(r/bh)*bh, bc0=Math.floor(c/bw)*bw;
+  for(let i=0;i<bh;i++) for(let j=0;j<bw;j++) if(g[br0+i][bc0+j]===val) return false;
+  return true;
+}
+function generateSolved(n){
+  const {bw,bh}=boxDims(n);
+  const g=Array.from({length:n},()=>Array(n).fill(0));
+  function fill(pos){
+    if(pos===n*n) return true;
+    const r=Math.floor(pos/n), c=pos%n;
+    const nums=shuffle([...Array(n)].map((_,i)=>i+1));
+    for(const v of nums){
+      if(isSafe(g,n,bw,bh,r,c,v)){
+        g[r][c]=v;
+        if(fill(pos+1)) return true;
+        g[r][c]=0;
+      }
+    }
+    return false;
+  }
+  fill(0);
+  return g;
+}
+function solveCount(grid,n,bw,bh,limitCount,nodeBudget){
+  let count=0, nodes=0, hitBudget=false;
+  const g=grid.map(r=>r.slice());
+  function findEmpty(){ for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(g[r][c]===0) return [r,c]; return null; }
+  function backtrack(){
+    if(hitBudget||count>=limitCount) return;
+    nodes++; if(nodes>nodeBudget){ hitBudget=true; return; }
+    const pos=findEmpty();
+    if(!pos){ count++; return; }
+    const [r,c]=pos;
+    for(let v=1; v<=n; v++){
+      if(isSafe(g,n,bw,bh,r,c,v)){
+        g[r][c]=v; backtrack(); g[r][c]=0;
+        if(hitBudget||count>=limitCount) return;
+      }
+    }
+  }
+  backtrack();
+  return {count,hitBudget};
+}
+function generatePuzzle(n,clueTarget){
+  const {bw,bh}=boxDims(n);
+  const solution=generateSolved(n);
+  const puzzle=solution.map(r=>r.slice());
+  const positions=shuffle([...Array(n*n).keys()]);
+  let clues=n*n;
+  const nodeBudget = n<=4?3000:(n<=6?12000:30000);
+  for(const pos of positions){
+    if(clues<=clueTarget) break;
+    const r=Math.floor(pos/n), c=pos%n;
+    if(puzzle[r][c]===0) continue;
+    const backup=puzzle[r][c];
+    puzzle[r][c]=0;
+    const {count}=solveCount(puzzle,n,bw,bh,2,nodeBudget);
+    if(count!==1) puzzle[r][c]=backup; else clues--;
+  }
+  return {puzzle,solution,bw,bh,n};
+}
+function computeCandidates(grid,n,bw,bh,r,c){
+  const out=[];
+  for(let v=1; v<=n; v++) if(isSafe(grid,n,bw,bh,r,c,v)) out.push(v);
+  return out;
+}
+
+/* ========================= Config tables ========================= */
+const TUTORIAL_CLUES = { 4:{1:10,2:8,3:6}, 6:{1:24,2:20,3:16}, 9:{1:51,2:45,3:38} };
+const TUTORIAL_HINTS = {1:Infinity,2:Infinity,3:3};
+const TUTORIAL_XP = {1:15,2:25,3:40};
+const TUTORIAL_LABEL = {0:'규칙 알아보기',1:'크기 선택 · 연습',2:'가이드 모드',3:'홀로서기',4:'자유 도전'};
+const DIFF_ORDER = ['easy','medium','hard','expert'];
+const DIFF_LABEL = {easy:'쉬움',medium:'보통',hard:'어려움',expert:'전문가'};
+const DIFF_CLUES = {easy:38,medium:32,hard:27,expert:20};
+const DIFF_HINTS = {easy:5,medium:3,hard:2,expert:1};
+const DIFF_XP = {easy:30,medium:50,hard:80,expert:120};
+
+function levelFromXP(xp){ let lvl=1; while(lvl<60 && xpThreshold(lvl+1)<=xp) lvl++; return lvl; }
+function xpThreshold(lvl){ return 60*(lvl-1)*lvl; }
+function badgeForLevel(lvl){ if(lvl>=13) return '마스터'; if(lvl>=8) return '고수'; if(lvl>=4) return '숙련자'; return '새싹'; }
+function applyPenalty(base,mistakes,hints){
+  const raw = base - mistakes*3 - hints*5;
+  return Math.max(Math.round(base*0.4), Math.round(raw));
+}
+
+/* ========================= Persistence helpers ========================= */
+function safeId(str){
+  const b64 = btoa(unescape(encodeURIComponent(str)));
+  return b64.replace(/\//g,'_').replace(/=+$/,'') || 'x';
+}
+function studentKeyStr(name,classroom){ return classroom.trim()+'__'+name.trim(); }
+function defaultProfile(name,classroom){
+  return { studentName:name, classroom, totalXP:0, level:1, badges:[], totalCompleted:0,
+    streakDays:0, lastPlayedDate:null, tutorialLevel:0, boardSizePref:null, bestDifficulty:null };
+}
+function lsGet(key){ try{ const r=localStorage.getItem(key); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function lsSet(key,val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+
+const App = {
+  screen:'home', db:null, downloadsCap:null,
+  name:'', classroom:'', profileId:null, profile:null,
+  assigned:null, session:null, teacher:{classroom:null,id:null}
+};
+
+async function initCaps(){
+  try{
+    if(window.claude && typeof window.claude.use==='function'){
+      App.db = await window.claude.use('db');
+    }
+  }catch(e){ App.db=null; }
+  try{
+    if(window.claude && typeof window.claude.use==='function'){
+      App.downloadsCap = await window.claude.use('downloads');
+    }
+  }catch(e){ App.downloadsCap=null; }
+  App.capsReady = true;
+  if(App.screen==='teacher-login') renderTeacherLogin();
+}
+
+async function loadProfile(name,classroom){
+  const key = studentKeyStr(name,classroom);
+  const id = safeId(key);
+  let profile = lsGet('sp_'+id);
+  if(App.db){
+    try{
+      const snap = await App.db.doc('profiles/'+id).get();
+      if(snap.exists) profile = snap.data();
+    }catch(e){}
+  }
+  if(!profile) profile = defaultProfile(name,classroom);
+  return {id,key,profile};
+}
+function saveProfile(id,profile){
+  lsSet('sp_'+id, profile);
+  if(App.db){
+    App.db.doc('profiles/'+id).set(profile).catch(()=>{ toast('온라인 동기화 실패 — 이 기기에만 저장됐어요'); });
+  }
+}
+function recordSession(id,doc){
+  const arr = lsGet('ss_'+id) || [];
+  arr.unshift(doc);
+  if(arr.length>50) arr.length=50;
+  lsSet('ss_'+id, arr);
+  if(App.db){
+    App.db.collection('sessions').add(Object.assign({studentKeyId:id}, doc)).catch(()=>{});
+  }
+}
+async function getClassConfig(classroom){
+  const id = safeId(classroom.trim());
+  if(!App.db) return {id,data:null};
+  try{
+    const snap = await App.db.doc('classConfig/'+id).get();
+    return {id, data: snap.exists?snap.data():null};
+  }catch(e){ return {id,data:null}; }
+}
+
+/* ========================= UI helpers ========================= */
+const view = document.getElementById('view');
+const topbarInfo = document.getElementById('topbar-info');
+const btnSwitch = document.getElementById('btn-switch');
+const btnHome = document.getElementById('btn-home');
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.hidden=false;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ t.hidden=true; },2800);
+}
+function showLoading(msg){ document.getElementById('loading-text').textContent=msg||'퍼즐 만드는 중…'; document.getElementById('loading').hidden=false; }
+function hideLoading(){ document.getElementById('loading').hidden=true; }
+function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function renderTopbar(){
+  if(App.name){
+    topbarInfo.innerHTML = `<span class="pill">${esc(App.name)} · ${esc(App.classroom)}</span>` +
+      (App.profile ? `<span class="pill warm">Lv.${App.profile.level} · ${badgeForLevel(App.profile.level)}</span>` : '');
+    btnSwitch.hidden=false;
+  } else {
+    topbarInfo.innerHTML='';
+    btnSwitch.hidden=true;
+  }
+  btnHome.hidden = App.screen==='home';
+}
+
+function goHome(){
+  if(App.session && App.session.timerHandle) clearInterval(App.session.timerHandle);
+  App.session=null;
+  App.screen='home';
+  renderHome();
+}
+function switchUser(){
+  if(App.session && App.session.timerHandle) clearInterval(App.session.timerHandle);
+  App.session=null; App.name=''; App.classroom=''; App.profile=null; App.profileId=null; App.assigned=null;
+  App.screen='home';
+  renderHome();
+}
+
+/* ========================= Screens: Home ========================= */
+function renderHome(){
+  renderTopbar();
+  view.innerHTML = `
+    <div class="center-wrap" style="max-width:680px;text-align:center;">
+      <p class="stage-tag">학급 스도쿠 학습 게임</p>
+      <h1 class="hero-title">누가 먼저 9×9를 완성할까요?</h1>
+      <p class="lede">이름과 반을 입력하면 나만의 학습 단계부터 시작합니다. 선생님은 반 전체 기록과 랭킹을 확인할 수 있어요.</p>
+      <div class="home-grid">
+        <div class="home-card" data-action="go-student" tabindex="0">
+          <div class="ico">🧑‍🎓</div>
+          <h2>학생으로 시작</h2>
+          <p>이름을 입력하고 내 단계에서 스도쿠에 도전해요.</p>
+        </div>
+        <div class="home-card teacher" data-action="go-teacher" tabindex="0">
+          <div class="ico">🧑‍🏫</div>
+          <h2>교사 대시보드</h2>
+          <p>반 코드와 비밀번호로 들어가 학급 현황을 확인해요.</p>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ========================= Screens: Student entry ========================= */
+function renderStudentEntry(){
+  renderTopbar();
+  const last = lsGet('last_login') || {name:'',classroom:''};
+  view.innerHTML = `
+    <div class="center-wrap">
+      <p class="stage-tag">학생 입장</p>
+      <h1 class="hero-title" style="font-size:28px;">이름과 반을 알려주세요</h1>
+      <p class="lede">이전에 입력한 적이 있다면 자동으로 기록을 이어받아요.</p>
+      <form id="entry-form" class="card">
+        <div class="field">
+          <label for="in-name">이름</label>
+          <input id="in-name" required maxlength="20" value="${esc(last.name)}" placeholder="예: 김하늘">
+        </div>
+        <div class="field">
+          <label for="in-class">학급(반)</label>
+          <input id="in-class" required maxlength="20" value="${esc(last.classroom)}" placeholder="예: 3-2">
+        </div>
+        <div id="entry-err" class="err-text" hidden></div>
+        <button class="btn btn-primary btn-block" type="submit">시작하기</button>
+      </form>
+    </div>`;
+}
+
+async function handleEntrySubmit(form){
+  const name = form.querySelector('#in-name').value.trim();
+  const classroom = form.querySelector('#in-class').value.trim();
+  const errEl = form.querySelector('#entry-err');
+  if(!name || !classroom){ errEl.textContent='이름과 반을 모두 입력해 주세요.'; errEl.hidden=false; return; }
+  errEl.hidden=true;
+  lsSet('last_login',{name,classroom});
+  showLoading('내 기록을 불러오는 중…');
+  App.name=name; App.classroom=classroom;
+  const {id,profile} = await loadProfile(name,classroom);
+  App.profileId=id; App.profile=profile;
+  const cc = await getClassConfig(classroom);
+  App.assigned = (cc.data && cc.data.isAssigned) ? {size:cc.data.assignedBoardSize, level:cc.data.assignedLevel} : null;
+  hideLoading();
+  routeAfterEntry();
+}
+
+function routeAfterEntry(){
+  renderTopbar();
+  if(App.assigned){
+    if(App.assigned.level>=4){ App.screen='difficulty'; renderDifficultySelect(); return; }
+    const lvl = Math.max(App.assigned.level,1);
+    if(lvl<=1 || App.profile.tutorialLevel===0){
+      App.screen='rules'; renderRules(); return;
+    }
+    startTutorialPuzzle(lvl, App.assigned.size);
+    return;
+  }
+  if(App.profile.tutorialLevel>=4){ App.screen='difficulty'; renderDifficultySelect(); return; }
+  if(App.profile.tutorialLevel===0){ App.screen='rules'; renderRules(); return; }
+  const size = App.profile.boardSizePref || 6;
+  startTutorialPuzzle(App.profile.tutorialLevel, size);
+}
+
+/* ========================= Screens: Tutorial rules (Lv0) ========================= */
+function renderRules(){
+  renderTopbar();
+  view.innerHTML = `
+    <div class="center-wrap">
+      <p class="stage-tag">학습 사다리 · LV. 0</p>
+      <h1 class="hero-title" style="font-size:26px;">스도쿠 규칙 알아보기</h1>
+      <div class="card">
+        <div class="rule-step"><span class="n">1</span><div><strong>가로줄</strong>에는 같은 숫자가 두 번 들어갈 수 없어요.</div></div>
+        <div class="rule-step"><span class="n">2</span><div><strong>세로줄</strong>에도 같은 숫자가 두 번 들어갈 수 없어요.</div></div>
+        <div class="rule-step"><span class="n">3</span><div>굵은 테두리로 묶인 <strong>작은 박스</strong> 안에도 같은 숫자가 두 번 들어갈 수 없어요.</div></div>
+        <div class="demo4" id="demo-grid"></div>
+        <p class="lede" style="margin:4px 0 0;text-align:center;">아래 칸을 눌러보면 같은 줄에 이미 있는 숫자가 표시돼요.</p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-block" data-action="rules-next">다음: 보드 크기 정하기 →</button>
+      </div>
+    </div>`;
+  const demo = [[1,2,0,4],[0,4,1,0],[2,0,4,1],[4,1,0,2]];
+  const grid = document.getElementById('demo-grid');
+  demo.forEach((row,r)=>row.forEach((val,c)=>{
+    const d=document.createElement('div');
+    d.textContent = val||'';
+    d.style.cursor='pointer';
+    d.addEventListener('click',()=>{
+      [...grid.children].forEach((cell,i)=>{
+        const rr=Math.floor(i/4), cc=i%4;
+        cell.style.background = (rr===r||cc===c)?'var(--accent-soft)':'var(--paper-raised)';
+      });
+    });
+    grid.appendChild(d);
+  }));
+}
+function afterRules(){
+  App.profile.tutorialLevel = Math.max(App.profile.tutorialLevel,1);
+  saveProfile(App.profileId, App.profile);
+  if(App.assigned){ startTutorialPuzzle(Math.max(App.assigned.level,1), App.assigned.size); return; }
+  if(App.profile.boardSizePref){ startTutorialPuzzle(1, App.profile.boardSizePref); return; }
+  App.screen='size'; renderSizeSelect();
+}
+
+/* ========================= Screens: size select (Lv1 size) ========================= */
+function renderSizeSelect(){
+  renderTopbar();
+  const opts = [
+    {n:4, title:'4×4', desc:'2×2 박스 · 가장 쉬운 시작'},
+    {n:6, title:'6×6', desc:'2×3 박스 · 적당한 입문용'},
+    {n:9, title:'9×9', desc:'표준 크기 · 자신 있다면 도전'}
+  ];
+  view.innerHTML = `
+    <div class="center-wrap" style="max-width:640px;">
+      <p class="stage-tag">학습 사다리 · LV. 1</p>
+      <h1 class="hero-title" style="font-size:26px;">연습할 보드 크기를 골라보세요</h1>
+      <p class="lede">작게 시작해도 되고, 자신 있으면 바로 9×9로 가도 돼요.</p>
+      <div class="choice-grid">
+        ${opts.map(o=>`
+          <div class="choice-card" data-action="pick-size" data-size="${o.n}" tabindex="0">
+            <div class="size-swatch" style="grid-template-columns:repeat(${o.n},7px)">
+              ${Array(o.n*o.n).fill('<div></div>').join('')}
+            </div>
+            <h3>${o.title}</h3>
+            <p>${o.desc}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+function pickSize(n){
+  App.profile.boardSizePref = n;
+  saveProfile(App.profileId, App.profile);
+  startTutorialPuzzle(1, n);
+}
+
+/* ========================= Puzzle session ========================= */
+function startTutorialPuzzle(level, size){
+  showLoading('연습 퍼즐을 만드는 중…');
+  setTimeout(()=>{
+    const clues = (TUTORIAL_CLUES[size]||TUTORIAL_CLUES[9])[level] || Math.round(size*size*0.55);
+    const data = generatePuzzle(size, clues);
+    beginSession({kind:'tutorial', level, size, data, hintsMax: TUTORIAL_HINTS[level], autoCandidates: level===2});
+    hideLoading();
+  }, 30);
+}
+function startFreePuzzle(difficulty){
+  showLoading('퍼즐을 만드는 중…');
+  setTimeout(()=>{
+    const data = generatePuzzle(9, DIFF_CLUES[difficulty]);
+    beginSession({kind:'free', difficulty, size:9, data, hintsMax: DIFF_HINTS[difficulty], autoCandidates:false});
+    hideLoading();
+  }, 30);
+}
+function beginSession(cfg){
+  const n = cfg.size;
+  App.session = {
+    kind:cfg.kind, level:cfg.level, difficulty:cfg.difficulty, size:n,
+    bw:cfg.data.bw, bh:cfg.data.bh, solution:cfg.data.solution,
+    grid: cfg.data.puzzle.map(r=>r.slice()),
+    given: cfg.data.puzzle.map(row=>row.map(v=>v!==0)),
+    notes: {}, selected:null, mistakes:0, hintsUsed:0, hintsMax:cfg.hintsMax,
+    autoCandidates:!!cfg.autoCandidates, notesMode:false,
+    startedAt: Date.now(), elapsed:0, timerHandle:null, hintedCells:{}
+  };
+  App.screen='play';
+  renderPlay();
+  App.session.timerHandle = setInterval(()=>{
+    App.session.elapsed = Math.floor((Date.now()-App.session.startedAt)/1000);
+    const el = document.getElementById('stat-timer');
+    if(el) el.textContent = fmtTime(App.session.elapsed);
+  },1000);
+}
+function fmtTime(s){ const m=Math.floor(s/60), sec=s%60; return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'); }
+
+function renderPlay(){
+  renderTopbar();
+  const s = App.session;
+  const stageLabel = s.kind==='tutorial' ? `학습 사다리 · LV.${s.level} · ${TUTORIAL_LABEL[s.level]} · ${s.size}×${s.size}` : `자유 도전 · ${DIFF_LABEL[s.difficulty]} · 9×9`;
+  const hintsLabel = s.hintsMax===Infinity ? '무제한' : (s.hintsMax - s.hintsUsed);
+  view.innerHTML = `
+    <p class="stage-tag" style="text-align:center;">${stageLabel}</p>
+    <div class="play-wrap">
+      <div class="board-col">
+        <div id="board"></div>
+        <div class="pad" id="pad"></div>
+        <div class="toolrow">
+          <button data-action="toggle-notes" id="btn-notes" ${s.autoCandidates?'disabled':''}>✏️ 메모</button>
+          <button data-action="erase">지우기</button>
+          <button data-action="hint">💡 힌트 (${hintsLabel})</button>
+          <button data-action="give-up">그만하기</button>
+        </div>
+      </div>
+      <div class="side-col">
+        <div class="stat-row">
+          <div class="stat-tile"><div class="lab">시간</div><div class="val mono" id="stat-timer">00:00</div></div>
+          <div class="stat-tile ${s.mistakes>0?'bad':''}"><div class="lab">실수</div><div class="val mono" id="stat-mistakes">${s.mistakes}</div></div>
+        </div>
+        ${s.autoCandidates ? '<div class="card" style="padding:14px;font-size:13px;color:var(--ink-soft);">가이드 모드: 빈 칸에 넣을 수 있는 숫자가 자동으로 표시돼요.</div>' : ''}
+      </div>
+    </div>`;
+  buildBoard();
+  buildPad();
+  renderBoard();
+}
+function buildBoard(){
+  const s=App.session, n=s.size;
+  const board=document.getElementById('board');
+  board.style.gridTemplateColumns = `repeat(${n},1fr)`;
+  board.style.gridTemplateRows = `repeat(${n},1fr)`;
+  board.innerHTML='';
+  const fontSize = n===9? '18px' : (n===6?'20px':'24px');
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.r=r; cell.dataset.c=c;
+      cell.dataset.action='cell';
+      cell.style.fontSize=fontSize;
+      const bw=s.bw, bh=s.bh;
+      cell.style.borderRight = ((c+1)%bw===0 && c!==n-1) ? '2.5px solid var(--ink)' : '1px solid var(--line)';
+      cell.style.borderBottom = ((r+1)%bh===0 && r!==n-1) ? '2.5px solid var(--ink)' : '1px solid var(--line)';
+      board.appendChild(cell);
+    }
+  }
+}
+function buildPad(){
+  const s=App.session;
+  const pad=document.getElementById('pad');
+  pad.innerHTML='';
+  for(let v=1; v<=s.size; v++){
+    const b=document.createElement('button');
+    b.textContent=v; b.dataset.action='num'; b.dataset.val=v;
+    pad.appendChild(b);
+  }
+}
+function renderBoard(){
+  const s=App.session, n=s.size;
+  const board=document.getElementById('board');
+  const sel=s.selected;
+  [...board.children].forEach(cell=>{
+    const r=+cell.dataset.r, c=+cell.dataset.c;
+    const val=s.grid[r][c];
+    const isGiven=s.given[r][c];
+    const isSelected = sel && sel.r===r && sel.c===c;
+    const isPeer = sel && !isSelected && (sel.r===r || sel.c===c ||
+      (Math.floor(sel.r/s.bh)===Math.floor(r/s.bh) && Math.floor(sel.c/s.bw)===Math.floor(c/s.bw)));
+    const isError = val!==0 && !isGiven && val!==s.solution[r][c];
+    cell.classList.toggle('selected', !!isSelected);
+    cell.classList.toggle('peer', !!isPeer);
+    cell.classList.toggle('error', !!isError);
+    cell.classList.toggle('given', isGiven);
+    cell.classList.toggle('user', !isGiven && val!==0);
+    cell.classList.toggle('hinted', !!s.hintedCells[r+','+c]);
+    cell.innerHTML='';
+    if(val!==0){
+      const span=document.createElement('span');
+      span.className='v'; span.textContent=val;
+      cell.appendChild(span);
+    } else {
+      let nums=[];
+      if(s.autoCandidates){ nums=computeCandidates(s.grid,n,s.bw,s.bh,r,c); }
+      else if(s.notes[r+','+c] && s.notes[r+','+c].size){ nums=[...s.notes[r+','+c]].sort((a,b)=>a-b); }
+      if(nums.length){
+        const g=document.createElement('div');
+        g.className='notes-grid';
+        const cols=Math.ceil(Math.sqrt(n));
+        g.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+        g.style.fontSize = n>=9?'9px':'10px';
+        for(let v=1; v<=n; v++){
+          const sp=document.createElement('span');
+          sp.textContent = nums.includes(v)?v:'';
+          g.appendChild(sp);
+        }
+        cell.appendChild(g);
+      }
+    }
+  });
+  document.getElementById('stat-mistakes').textContent = s.mistakes;
+  document.getElementById('stat-mistakes').parentElement.classList.toggle('bad', s.mistakes>0);
+  const notesBtn = document.getElementById('btn-notes');
+  if(notesBtn) notesBtn.classList.toggle('active', s.notesMode);
+}
+function selectCell(r,c){
+  const s=App.session;
+  if(s.given[r][c]) { s.selected=null; renderBoard(); return; }
+  s.selected={r,c};
+  renderBoard();
+}
+function inputNumber(v){
+  const s=App.session;
+  if(!s.selected) return;
+  const {r,c}=s.selected;
+  if(s.given[r][c]) return;
+  if(s.notesMode && !s.autoCandidates && s.grid[r][c]===0){
+    const key=r+','+c;
+    if(!s.notes[key]) s.notes[key]=new Set();
+    if(s.notes[key].has(v)) s.notes[key].delete(v); else s.notes[key].add(v);
+    renderBoard();
+    return;
+  }
+  const wasEmpty = s.grid[r][c]===0;
+  const prevVal = s.grid[r][c];
+  s.grid[r][c]=v;
+  delete s.notes[r+','+c];
+  if(v!==s.solution[r][c] && (wasEmpty || prevVal!==v)) s.mistakes++;
+  renderBoard();
+  checkComplete();
+}
+function eraseCell(){
+  const s=App.session;
+  if(!s.selected) return;
+  const {r,c}=s.selected;
+  if(s.given[r][c]) return;
+  s.grid[r][c]=0;
+  delete s.notes[r+','+c];
+  renderBoard();
+}
+function useHint(){
+  const s=App.session;
+  if(!s.selected){ toast('먼저 칸을 선택해 주세요.'); return; }
+  if(s.hintsMax!==Infinity && s.hintsUsed>=s.hintsMax){ toast('힌트를 모두 사용했어요.'); return; }
+  const {r,c}=s.selected;
+  if(s.given[r][c] || s.grid[r][c]===s.solution[r][c]){ toast('이미 맞는 칸이에요.'); return; }
+  s.grid[r][c]=s.solution[r][c];
+  s.hintedCells[r+','+c]=true;
+  delete s.notes[r+','+c];
+  if(s.hintsMax!==Infinity) s.hintsUsed++;
+  renderPlay();
+  checkComplete();
+}
+function toggleNotes(){
+  const s=App.session;
+  if(s.autoCandidates) return;
+  s.notesMode=!s.notesMode;
+  renderBoard();
+}
+function checkComplete(){
+  const s=App.session;
+  for(let r=0;r<s.size;r++) for(let c=0;c<s.size;c++) if(s.grid[r][c]!==s.solution[r][c]) return;
+  clearInterval(s.timerHandle);
+  completeSession();
+}
+function completeSession(){
+  const s=App.session;
+  let base, kindLabel;
+  if(s.kind==='tutorial'){ base=TUTORIAL_XP[s.level]||20; kindLabel=TUTORIAL_LABEL[s.level]; }
+  else { base=DIFF_XP[s.difficulty]; kindLabel=DIFF_LABEL[s.difficulty]; }
+  const xp = applyPenalty(base, s.mistakes, s.hintsUsed===Infinity?0:s.hintsUsed);
+  const today = new Date().toDateString();
+  let streakBonus=0;
+  const p = App.profile;
+  if(p.lastPlayedDate!==today){
+    const yest = new Date(Date.now()-86400000).toDateString();
+    p.streakDays = (p.lastPlayedDate===yest) ? (p.streakDays||0)+1 : 1;
+    p.lastPlayedDate = today;
+    streakBonus = 10;
+  }
+  p.totalXP = (p.totalXP||0) + xp + streakBonus;
+  p.level = levelFromXP(p.totalXP);
+  const badge = badgeForLevel(p.level);
+  const isNewBadge = !p.badges.includes(badge);
+  if(isNewBadge) p.badges.push(badge);
+  p.totalCompleted = (p.totalCompleted||0)+1;
+  let advanced=false;
+  if(s.kind==='tutorial'){
+    const next = s.level<4 ? s.level+1 : 4;
+    if(next>p.tutorialLevel){ p.tutorialLevel=next; advanced = (s.level===3); }
+  } else {
+    const idx=DIFF_ORDER.indexOf(s.difficulty);
+    const cur=p.bestDifficulty?DIFF_ORDER.indexOf(p.bestDifficulty):-1;
+    if(idx>cur) p.bestDifficulty=s.difficulty;
+  }
+  saveProfile(App.profileId, p);
+  recordSession(App.profileId, {
+    studentName:App.name, classroom:App.classroom, kind:s.kind, level:s.level||null, difficulty:s.difficulty||null,
+    boardSize:s.size, durationSec:s.elapsed, mistakeCount:s.mistakes, hintCount:(s.hintsUsed===Infinity?0:s.hintsUsed),
+    completed:true, xpEarned:xp+streakBonus, startedAt:new Date(s.startedAt).toISOString(), finishedAt:new Date().toISOString()
+  });
+  App.screen='result';
+  renderResult({xp,streakBonus,badge,isNewBadge,advanced,kindLabel});
+}
+
+/* ========================= Result ========================= */
+function renderResult({xp,streakBonus,badge,isNewBadge,advanced,kindLabel}){
+  renderTopbar();
+  const p=App.profile;
+  const lvl=p.level;
+  const curFloor=xpThreshold(lvl), nextFloor=xpThreshold(lvl+1);
+  const pct = Math.min(100, Math.round((p.totalXP-curFloor)/(nextFloor-curFloor)*100));
+  view.innerHTML = `
+    <div class="center-wrap">
+      <div class="card result-xp">
+        <p class="stage-tag">${esc(kindLabel)} 완료!</p>
+        <div class="xp-burst">+${xp+streakBonus} XP</div>
+        ${streakBonus? `<p style="color:var(--warm-ink);font-weight:600;margin-top:4px;">🔥 ${p.streakDays}일 연속 참여 보너스 +${streakBonus}</p>`:''}
+        ${isNewBadge? `<p style="color:var(--accent-ink);font-weight:700;margin-top:10px;">🏅 새 칭호 획득: ${badge}</p>`:''}
+        <div class="levelbar-track"><div class="levelbar-fill" style="width:${pct}%"></div></div>
+        <p class="mono" style="font-size:12.5px;color:var(--muted);">Lv.${lvl} · ${badge} · 총 ${p.totalXP} XP</p>
+        ${advanced? `<p style="margin-top:14px;font-weight:600;color:var(--accent-ink);">🎉 자유 도전 모드가 열렸어요!</p>`:''}
+      </div>
+      <div class="btn-row" id="result-actions"></div>
+    </div>`;
+  const actions=document.getElementById('result-actions');
+  if(App.session.kind==='tutorial' && p.tutorialLevel<4 && !App.assigned){
+    actions.innerHTML = `<button class="btn btn-primary btn-block" data-action="result-next">다음 단계로 →</button>`;
+  } else if(App.session.kind==='tutorial' && (p.tutorialLevel>=4 || App.assigned)){
+    actions.innerHTML = App.assigned
+      ? `<button class="btn btn-primary btn-block" data-action="result-retry">다시 도전</button>`
+      : `<button class="btn btn-primary btn-block" data-action="result-diffmenu">자유 도전 시작하기 →</button>`;
+  } else {
+    actions.innerHTML = `
+      <button class="btn btn-primary" data-action="result-retry">다시 도전</button>
+      <button class="btn btn-outline" data-action="result-diffmenu">다른 난이도</button>`;
+  }
+  actions.innerHTML += `<button class="btn btn-outline" data-action="go-home">홈으로</button>`;
+}
+function resultNext(){
+  const s=App.session, p=App.profile;
+  if(s.kind==='tutorial' && s.level<3){ startTutorialPuzzle(s.level+1, s.size); }
+  else if(s.kind==='tutorial'){ App.screen='difficulty'; renderDifficultySelect(); }
+}
+function resultRetry(){
+  const s=App.session;
+  if(s.kind==='tutorial') startTutorialPuzzle(s.level, s.size);
+  else startFreePuzzle(s.difficulty);
+}
+
+/* ========================= Difficulty select (free / Lv4) ========================= */
+function renderDifficultySelect(){
+  renderTopbar();
+  const p=App.profile;
+  const bestIdx = p.bestDifficulty ? DIFF_ORDER.indexOf(p.bestDifficulty) : -1;
+  const rec = DIFF_ORDER[Math.min(bestIdx+1, DIFF_ORDER.length-1)];
+  view.innerHTML = `
+    <div class="center-wrap" style="max-width:680px;">
+      <p class="stage-tag">자유 도전</p>
+      <h1 class="hero-title" style="font-size:26px;">오늘은 어떤 난이도에 도전할까요?</h1>
+      <div class="choice-grid">
+        ${DIFF_ORDER.map(d=>`
+          <div class="choice-card" data-action="pick-difficulty" data-diff="${d}" tabindex="0">
+            <h3>${DIFF_LABEL[d]}</h3>
+            <p>단서 ${DIFF_CLUES[d]}칸 · 힌트 ${DIFF_HINTS[d]}회</p>
+            ${d===rec? '<span class="badge-rec">추천</span>':''}
+          </div>`).join('')}
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline" data-action="show-ranking">🏆 우리 반 랭킹 보기</button>
+      </div>
+    </div>`;
+}
+
+/* ========================= Ranking (student view) ========================= */
+async function renderRanking(){
+  renderTopbar();
+  view.innerHTML = `<div class="center-wrap"><p class="stage-tag">우리 반 랭킹</p><h1 class="hero-title" style="font-size:24px;">${esc(App.classroom)}</h1><div id="rank-body"><p class="lede">불러오는 중…</p></div>
+    <div class="btn-row"><button class="btn btn-outline" data-action="back-to-difficulty">← 돌아가기</button></div></div>`;
+  const body=document.getElementById('rank-body');
+  if(!App.db){ body.innerHTML = `<p class="lede">랭킹을 보려면 Claude 계정으로 로그인된 상태에서 접속해야 해요. 선생님께 문의해 보세요.</p>`; return; }
+  try{
+    const cc = await getClassConfig(App.classroom);
+    const vis = (cc.data && cc.data.rankingVisibility) || 'all';
+    const q = await App.db.collection('profiles').where('classroom','==',App.classroom).get();
+    let rows = q.docs.map(d=>d.data()).sort((a,b)=>(b.totalXP||0)-(a.totalXP||0));
+    const myIndex = rows.findIndex(r=>r.studentName===App.name);
+    let shown = rows;
+    if(vis==='top3') shown = rows.slice(0,3);
+    else if(vis==='top50') shown = rows.slice(0, Math.max(1,Math.ceil(rows.length/2)));
+    if(!rows.length){ body.innerHTML='<p class="lede">아직 기록이 없어요. 첫 번째 도전자가 되어보세요!</p>'; return; }
+    body.innerHTML = `
+      <div class="tblwrap"><table>
+        <thead><tr><th>순위</th><th>이름</th><th>레벨</th><th class="mono">누적 XP</th><th class="mono">연속참여</th></tr></thead>
+        <tbody>
+          ${shown.map((r,i)=>`<tr class="${r.studentName===App.name?'me':''}">
+            <td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${r.level}</td>
+            <td class="mono">${r.totalXP}</td><td class="mono">${r.streakDays||0}일</td></tr>`).join('')}
+        </tbody>
+      </table></div>
+      ${(vis!=='all' && myIndex>=shown.length) ? `<p class="lede" style="margin-top:12px;">내 순위: ${myIndex+1}위 (전체 ${rows.length}명 중)</p>`:''}
+    `;
+  }catch(e){ body.innerHTML = '<p class="lede">랭킹을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</p>'; }
+}
+
+/* ========================= Teacher: login ========================= */
+function renderTeacherLogin(){
+  renderTopbar();
+  view.innerHTML = `
+    <div class="center-wrap">
+      <p class="stage-tag">교사 대시보드</p>
+      <h1 class="hero-title" style="font-size:26px;">학급 코드와 비밀번호를 입력하세요</h1>
+      <p class="lede">처음 접속하는 학급이면 비밀번호를 새로 설정하게 돼요.</p>
+      <form id="teacher-login-form" class="card">
+        <div class="field"><label for="t-class">학급(반) 코드</label><input id="t-class" required maxlength="20" placeholder="예: 3-2"></div>
+        <div class="field"><label for="t-pass">비밀번호</label><input id="t-pass" type="password" required maxlength="30"></div>
+        <div id="teacher-err" class="err-text" hidden></div>
+        <button class="btn btn-warm btn-block" type="submit">들어가기</button>
+      </form>
+      ${!App.db ? '<p class="lede">⚠ 현재 로그인 상태를 확인할 수 없어 대시보드 데이터에 접근하지 못할 수 있어요.</p>':''}
+    </div>`;
+}
+async function handleTeacherLogin(form){
+  const classroom = form.querySelector('#t-class').value.trim();
+  const pass = form.querySelector('#t-pass').value;
+  const errEl = form.querySelector('#teacher-err');
+  if(!classroom || !pass){ errEl.textContent='학급 코드와 비밀번호를 입력해 주세요.'; errEl.hidden=false; return; }
+  if(!App.db){ errEl.textContent='로그인 상태를 확인할 수 없어 대시보드를 열 수 없어요.'; errEl.hidden=false; return; }
+  showLoading('확인하는 중…');
+  try{
+    const id = safeId(classroom);
+    const ref = App.db.doc('classConfig/'+id);
+    const snap = await ref.get();
+    if(!snap.exists || !snap.data().passcode){
+      await ref.set({ classroom, passcode:pass, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString() });
+      toast('새 학급 비밀번호가 설정됐어요.');
+    } else if(snap.data().passcode!==pass){
+      hideLoading();
+      errEl.textContent='비밀번호가 올바르지 않습니다.'; errEl.hidden=false; return;
+    }
+    App.teacher = {classroom, id};
+    hideLoading();
+    App.screen='teacher';
+    renderTeacherDashboard();
+  }catch(e){
+    hideLoading();
+    errEl.textContent='연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; errEl.hidden=false;
+  }
+}
+
+/* ========================= Teacher: dashboard ========================= */
+async function renderTeacherDashboard(){
+  renderTopbar();
+  view.innerHTML = `
+    <div style="max-width:900px;margin:0 auto;">
+      <p class="stage-tag">교사 대시보드 · ${esc(App.teacher.classroom)}</p>
+      <div class="btn-row" style="margin:4px 0 10px;">
+        <button class="btn btn-outline" data-action="refresh-dashboard">🔄 새로고침</button>
+        <button class="btn btn-outline" data-action="export-csv">⬇ CSV 내보내기</button>
+      </div>
+      <div id="dash-body"><p class="lede">불러오는 중…</p></div>
+    </div>`;
+  await loadDashboardData();
+}
+async function loadDashboardData(){
+  const body=document.getElementById('dash-body');
+  const classroom = App.teacher.classroom, id=App.teacher.id;
+  try{
+    const [ccSnap, profQ, sessQ] = await Promise.all([
+      App.db.doc('classConfig/'+id).get(),
+      App.db.collection('profiles').where('classroom','==',classroom).get(),
+      App.db.collection('sessions').where('classroom','==',classroom).get()
+    ]);
+    const cc = ccSnap.exists ? ccSnap.data() : {isAssigned:false,assignedBoardSize:9,assignedLevel:4,rankingVisibility:'all'};
+    const profiles = profQ.docs.map(d=>({id:d.id,...d.data()}));
+    const sessions = sessQ.docs.map(d=>d.data()).sort((a,b)=> new Date(b.finishedAt)-new Date(a.finishedAt));
+    App.teacher.data = {cc,profiles,sessions};
+    body.innerHTML = buildDashboardHTML(cc,profiles,sessions);
+  }catch(e){
+    body.innerHTML = '<p class="lede">데이터를 불러오지 못했어요. 새로고침을 눌러 다시 시도해 주세요.</p>';
+  }
+}
+function buildDashboardHTML(cc,profiles,sessions){
+  const totalStudents=profiles.length;
+  const totalCompleted=sessions.length;
+  const avgMistakes = sessions.length ? (sessions.reduce((a,s)=>a+(s.mistakeCount||0),0)/sessions.length).toFixed(1) : '-';
+  const diffCount = {};
+  sessions.forEach(s=>{ const k=s.difficulty||('튜토리얼 Lv.'+s.level); diffCount[k]=(diffCount[k]||0)+1; });
+  const diffTop = Object.entries(diffCount).sort((a,b)=>b[1]-a[1])[0];
+  const ranked = [...profiles].sort((a,b)=>(b.totalXP||0)-(a.totalXP||0));
+
+  return `
+    <div class="teacher-grid">
+      <div class="stat-tile"><div class="lab">참여 학생</div><div class="val mono">${totalStudents}</div></div>
+      <div class="stat-tile"><div class="lab">총 완료 수</div><div class="val mono">${totalCompleted}</div></div>
+      <div class="stat-tile"><div class="lab">평균 실수</div><div class="val mono">${avgMistakes}</div></div>
+      <div class="stat-tile"><div class="lab">가장 많이 한 단계</div><div class="val mono" style="font-size:14px;">${diffTop?diffTop[0]:'-'}</div></div>
+    </div>
+
+    <h2 class="section-title">학습 단계 일괄 지정</h2>
+    <div class="card">
+      <div class="assign-form">
+        <div class="field"><label>지정 모드</label>
+          <select id="a-on"><option value="false" ${!cc.isAssigned?'selected':''}>끄기 (자율)</option><option value="true" ${cc.isAssigned?'selected':''}>켜기 (일괄 지정)</option></select>
+        </div>
+        <div class="field"><label>보드 크기</label>
+          <select id="a-size">${[4,6,9].map(n=>`<option value="${n}" ${cc.assignedBoardSize===n?'selected':''}>${n}×${n}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>단계</label>
+          <select id="a-level">
+            ${[0,1,2,3].map(l=>`<option value="${l}" ${cc.assignedLevel===l?'selected':''}>Lv.${l} · ${TUTORIAL_LABEL[l]}</option>`).join('')}
+            <option value="4" ${cc.assignedLevel===4?'selected':''}>자유 도전</option>
+          </select>
+        </div>
+        <button class="btn btn-warm" data-action="assign-save">저장</button>
+      </div>
+      <p class="hint" style="margin-top:10px;">켜져 있으면 학생 화면의 선택 단계가 생략되고 바로 지정된 크기·단계로 시작해요.</p>
+    </div>
+
+    <h2 class="section-title">학급 랭킹 보드</h2>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="assign-form">
+        <div class="field"><label>학생에게 공개할 범위</label>
+          <select id="v-select">
+            <option value="top3" ${cc.rankingVisibility==='top3'?'selected':''}>상위 3명만</option>
+            <option value="top50" ${cc.rankingVisibility==='top50'?'selected':''}>상위 50%</option>
+            <option value="all" ${cc.rankingVisibility==='all'?'selected':''}>전체 공개</option>
+          </select>
+        </div>
+        <button class="btn btn-outline" data-action="visibility-save">저장</button>
+      </div>
+    </div>
+    <div class="tblwrap" style="margin-bottom:30px;">
+      <table><thead><tr><th>순위</th><th>이름</th><th>레벨</th><th class="mono">누적 XP</th><th class="mono">완료 수</th><th class="mono">연속참여</th></tr></thead>
+      <tbody>
+        ${ranked.length? ranked.map((r,i)=>`<tr><td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${r.level}</td><td class="mono">${r.totalXP}</td><td class="mono">${r.totalCompleted||0}</td><td class="mono">${r.streakDays||0}일</td></tr>`).join('') : '<tr><td colspan="6" style="color:var(--muted)">아직 참여한 학생이 없어요.</td></tr>'}
+      </tbody></table>
+    </div>
+
+    <h2 class="section-title">학생별 기록</h2>
+    <div class="tblwrap">
+      <table><thead><tr><th>이름</th><th>튜토리얼</th><th>최고 난이도</th><th class="mono">완료 수</th><th class="mono">XP</th></tr></thead>
+      <tbody>
+        ${profiles.length ? profiles.map(p=>`<tr class="clickable" data-action="student-row" data-name="${esc(p.studentName)}"><td>${esc(p.studentName)}</td><td>Lv.${p.tutorialLevel}</td><td>${p.bestDifficulty?DIFF_LABEL[p.bestDifficulty]:'-'}</td><td class="mono">${p.totalCompleted||0}</td><td class="mono">${p.totalXP||0}</td></tr>`).join('') : '<tr><td colspan="5" style="color:var(--muted)">기록이 없어요.</td></tr>'}
+      </tbody></table>
+    </div>
+    <div id="student-detail"></div>
+  `;
+}
+function showStudentDetail(name){
+  const {sessions} = App.teacher.data;
+  const rows = sessions.filter(s=>s.studentName===name).slice(0,12);
+  const el = document.getElementById('student-detail');
+  el.innerHTML = `
+    <h2 class="section-title">${esc(name)}님의 최근 기록</h2>
+    <div class="tblwrap"><table><thead><tr><th>단계/난이도</th><th class="mono">크기</th><th class="mono">시간</th><th class="mono">실수</th><th class="mono">힌트</th><th class="mono">XP</th></tr></thead>
+      <tbody>${rows.length? rows.map(r=>`<tr><td>${r.difficulty?DIFF_LABEL[r.difficulty]:'Lv.'+r.level}</td><td class="mono">${r.boardSize}×${r.boardSize}</td><td class="mono">${fmtTime(r.durationSec||0)}</td><td class="mono">${r.mistakeCount||0}</td><td class="mono">${r.hintCount||0}</td><td class="mono">${r.xpEarned||0}</td></tr>`).join(''):'<tr><td colspan="6">기록 없음</td></tr>'}</tbody>
+    </table></div>`;
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+async function saveAssignment(){
+  const on = document.getElementById('a-on').value==='true';
+  const size = +document.getElementById('a-size').value;
+  const level = +document.getElementById('a-level').value;
+  try{
+    await App.db.doc('classConfig/'+App.teacher.id).update({isAssigned:on, assignedBoardSize:size, assignedLevel:level, assignedAt:new Date().toISOString()});
+    toast('학습 단계 지정을 저장했어요.');
+    loadDashboardData();
+  }catch(e){ toast('저장에 실패했어요.'); }
+}
+async function saveVisibility(){
+  const v = document.getElementById('v-select').value;
+  try{
+    await App.db.doc('classConfig/'+App.teacher.id).update({rankingVisibility:v});
+    toast('공개 범위를 저장했어요.');
+  }catch(e){ toast('저장에 실패했어요.'); }
+}
+async function exportCSV(){
+  const {sessions} = App.teacher.data||{sessions:[]};
+  if(!sessions.length){ toast('내보낼 기록이 없어요.'); return; }
+  const headers=['이름','학급','구분','레벨/난이도','보드크기','소요초','실수','힌트','완료여부','XP','완료시각'];
+  const lines=[headers.join(',')];
+  sessions.forEach(s=>{
+    lines.push([s.studentName,s.classroom,s.kind,(s.difficulty||('Lv'+s.level)),s.boardSize,s.durationSec,s.mistakeCount,s.hintCount,s.completed,s.xpEarned,s.finishedAt]
+      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+  });
+  const csv = '﻿'+lines.join('\n');
+  if(App.downloadsCap){
+    try{
+      await App.downloadsCap.save({filename:`sudoku_${App.teacher.classroom}.csv`, data: csv});
+      toast('CSV 파일을 저장했어요.');
+    }catch(e){ toast('다운로드가 취소되었거나 실패했어요.'); }
+  } else {
+    toast('이 환경에서는 다운로드를 지원하지 않아요.');
+  }
+}
+
+/* ========================= Event delegation ========================= */
+document.addEventListener('submit', (e)=>{
+  if(e.target.id==='entry-form'){ e.preventDefault(); handleEntrySubmit(e.target); }
+  if(e.target.id==='teacher-login-form'){ e.preventDefault(); handleTeacherLogin(e.target); }
+});
+
+document.addEventListener('click', (e)=>{
+  const t = e.target.closest('[data-action]');
+  if(!t) return;
+  const action = t.dataset.action;
+  switch(action){
+    case 'go-home': goHome(); break;
+    case 'switch-user': switchUser(); break;
+    case 'go-student': App.screen='student-entry'; renderStudentEntry(); break;
+    case 'go-teacher': App.screen='teacher-login'; renderTeacherLogin(); break;
+    case 'rules-next': afterRules(); break;
+    case 'pick-size': pickSize(+t.dataset.size); break;
+    case 'cell': selectCell(+t.dataset.r, +t.dataset.c); break;
+    case 'num': inputNumber(+t.dataset.val); break;
+    case 'erase': eraseCell(); break;
+    case 'hint': useHint(); break;
+    case 'toggle-notes': toggleNotes(); break;
+    case 'give-up': if(App.session) clearInterval(App.session.timerHandle); goHome(); break;
+    case 'result-next': resultNext(); break;
+    case 'result-retry': resultRetry(); break;
+    case 'result-diffmenu': App.screen='difficulty'; renderDifficultySelect(); break;
+    case 'pick-difficulty': startFreePuzzle(t.dataset.diff); break;
+    case 'show-ranking': App.screen='ranking'; renderRanking(); break;
+    case 'back-to-difficulty': App.screen='difficulty'; renderDifficultySelect(); break;
+    case 'refresh-dashboard': loadDashboardData(); break;
+    case 'export-csv': exportCSV(); break;
+    case 'assign-save': saveAssignment(); break;
+    case 'visibility-save': saveVisibility(); break;
+    case 'student-row': showStudentDetail(t.dataset.name); break;
+  }
+});
+
+document.addEventListener('keydown',(e)=>{
+  if(App.screen!=='play' || !App.session) return;
+  const s=App.session;
+  if(e.key>='1' && e.key<=String(s.size)){ inputNumber(+e.key); return; }
+  if(e.key==='Backspace' || e.key==='Delete'){ eraseCell(); return; }
+  if(!s.selected) return;
+  let {r,c}=s.selected;
+  if(e.key==='ArrowUp') r=(r-1+s.size)%s.size;
+  else if(e.key==='ArrowDown') r=(r+1)%s.size;
+  else if(e.key==='ArrowLeft') c=(c-1+s.size)%s.size;
+  else if(e.key==='ArrowRight') c=(c+1)%s.size;
+  else return;
+  e.preventDefault();
+  selectCell(r,c);
+});
+
+/* ========================= Boot ========================= */
+renderHome();
+initCaps();
+})();
+</script>
