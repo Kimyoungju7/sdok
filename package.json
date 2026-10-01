@@ -1,0 +1,17 @@
+{
+  "name": "sudoku-classroom",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-hosting.mjs",
+    "deploy": "firebase deploy --only hosting,firestore",
+    "serve:emulator": "node scripts/build-hosting.mjs --emulator && firebase emulators:start --project demo-sudoku",
+    "test:rules": "firebase emulators:exec --only auth,firestore --project demo-sudoku \"node tests/firestore-rules.test.mjs\"",
+    "test:e2e": "node scripts/build-hosting.mjs --emulator && firebase emulators:exec --only auth,firestore,hosting --project demo-sudoku \"node tests/e2e.mjs\""
+  },
+  "devDependencies": {
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.32.1",
+    "puppeteer-core": "^25.12.0"
+  }
+}

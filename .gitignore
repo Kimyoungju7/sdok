@@ -1,0 +1,5 @@
+# Firebase Hosting 빌드 결과물 (scripts/build-hosting.mjs가 생성)
+public/
+.firebase/
+*-debug.log
+node_modules/

@@ -588,13 +588,62 @@ function useCap(name){
       .then(v=>{ clearTimeout(t); resolve(v||null); }, ()=>{ clearTimeout(t); resolve(null); });
   });
 }
+/* ---------- Firebase 백엔드 (Firebase Hosting 배포본) ----------
+   빌드(scripts/build-hosting.mjs)가 window.SUDOKU_FIREBASE_CONFIG를 넣어 주면 Firestore를 쓰고,
+   없으면(Claude 아티팩트) 아래의 claude db 캡서빌리티를 쓴다. 앱 코드는 두 저장소를 같은
+   doc().get/set/update · collection().add/where().get 인터페이스로만 다룬다. */
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/12.19.0/';
+async function initFirebase(cfg){
+  const [appMod, authMod, fs] = await Promise.all([
+    import(FIREBASE_SDK+'firebase-app.js'), import(FIREBASE_SDK+'firebase-auth.js'), import(FIREBASE_SDK+'firebase-firestore.js')
+  ]);
+  const app = appMod.initializeApp(cfg);
+  const auth = authMod.getAuth(app);
+  const fdb = fs.getFirestore(app);
+  const emu = window.SUDOKU_FIREBASE_EMULATOR;   // 로컬 테스트용 {host, authPort, firestorePort}
+  if(emu){
+    authMod.connectAuthEmulator(auth, `http://${emu.host}:${emu.authPort}`, {disableWarnings:true});
+    fs.connectFirestoreEmulator(fdb, emu.host, emu.firestorePort);
+  }
+  // 학생은 로그인 없이 쓰므로 익명 로그인으로 보안 규칙의 request.auth만 확보한다
+  await authMod.signInAnonymously(auth);
+  const wrap = s => ({ id:s.id, exists:s.exists(), data:()=>s.data() });
+  return {
+    kind:'firebase',
+    uid: ()=>auth.currentUser ? auth.currentUser.uid : null,
+    doc: p => {
+      const ref = fs.doc(fdb, p);
+      return { get: async()=>wrap(await fs.getDoc(ref)), set: d=>fs.setDoc(ref,d), update: d=>fs.updateDoc(ref,d) };
+    },
+    collection: p => ({
+      add: d => fs.addDoc(fs.collection(fdb,p), d),
+      where: (f,op,v) => ({ get: async()=>{ const q=await fs.getDocs(fs.query(fs.collection(fdb,p), fs.where(f,op,v))); return {docs:q.docs.map(wrap)}; } })
+    }),
+    // [경로, 데이터] 목록을 한 번에(원자적으로) 쓴다 — 새 학급 만들기에 쓴다
+    batchSet: async list => { const b=fs.writeBatch(fdb); list.forEach(([p,d])=>b.set(fs.doc(fdb,p),d)); await b.commit(); }
+  };
+}
+function withTimeout(promise, ms){
+  return new Promise(resolve=>{
+    const t=setTimeout(()=>resolve(null), ms);
+    promise.then(v=>{ clearTimeout(t); resolve(v||null); }, e=>{ clearTimeout(t); console.error(e); resolve(null); });
+  });
+}
 function initCaps(){
-  useCap('downloads').then(c=>{ App.downloadsCap=c; });
-  return useCap('db').then(db=>{
+  const fbCfg = window.SUDOKU_FIREBASE_CONFIG;
+  App.backend = fbCfg ? 'firebase' : 'claude';
+  const dbReady = fbCfg ? withTimeout(initFirebase(fbCfg), CAPS_TIMEOUT_MS) : useCap('db');
+  if(!fbCfg) useCap('downloads').then(c=>{ App.downloadsCap=c; });
+  return dbReady.then(db=>{
     App.db = db; App.capsReady = true;
     const warn = document.getElementById('teacher-db-warn');
     if(warn) warn.hidden = !!App.db;
   });
+}
+function offlineMsg(){
+  return App.backend==='firebase'
+    ? '서버에 연결하지 못해 이 기기에만 기록돼요. 인터넷 연결을 확인해 주세요.'
+    : 'Claude에 로그인한 상태에서 접속해야 반 기록이 저장돼요.';
 }
 // 첫 화면은 기다리지 않고 그리되, db를 쓰는 동작(입장·교사 로그인)은 db 협상이 끝날 때까지 기다린다.
 // 기다리지 않으면 db 없이 기본 프로필로 시작했다가, 나중에 db가 붙은 뒤 서버 기록을 덮어쓸 수 있다.
@@ -1416,7 +1465,7 @@ async function renderSideRank(){
   const my=bestOf(App.profile,s.mode);
   const head=`<h3>${meta.emoji} ${meta.label} 우리 반 TOP 5</h3>`;
   const myLine=`<p class="my-best">내 최고 기록: ${my?`<b class="mono">${fmtTime(my.score)}</b>`:'<b>아직 없음</b>'}</p>`;
-  if(!App.db){ el.innerHTML=head+myLine+'<p class="hint">반 랭킹은 Claude에 로그인한 상태에서 볼 수 있어요.</p>'; return; }
+  if(!App.db){ el.innerHTML=head+myLine+`<p class="hint">반 랭킹을 불러올 수 없어요. ${offlineMsg()}</p>`; return; }
   el.innerHTML=head+'<p class="hint">불러오는 중…</p>';
   try{
     const rows=await fetchClassRows(false);
@@ -1597,7 +1646,7 @@ async function renderRanking(){
   const body=document.getElementById('rank-body');
   if(!App.db){
     const mine = DIFF_ORDER.map(d=>{ const b=bestOf(App.profile,d); return `<li>${MODE_META[d].emoji} ${MODE_META[d].label}: <b class="mono">${b?fmtTime(b.score):'-'}</b></li>`; }).join('');
-    body.innerHTML = `<div class="card"><p style="margin-top:0;">반 랭킹은 Claude에 로그인한 상태에서 볼 수 있어요. 선생님께 문의해 보세요.</p><p style="font-weight:700;margin-bottom:4px;">내 최고 기록</p><ul style="margin:0;">${mine}</ul></div>`;
+    body.innerHTML = `<div class="card"><p style="margin-top:0;">반 랭킹을 불러올 수 없어요. ${offlineMsg()}</p><p style="font-weight:700;margin-bottom:4px;">내 최고 기록</p><ul style="margin:0;">${mine}</ul></div>`;
     return;
   }
   try{
@@ -1633,7 +1682,7 @@ function renderTeacherLogin(){
         <div id="teacher-err" class="err-text" hidden></div>
         <button class="btn btn-warm btn-block" type="submit">들어가기</button>
       </form>
-      <p class="lede" id="teacher-db-warn" ${(App.capsReady && !App.db)?'':'hidden'}>⚠ 현재 로그인 상태를 확인할 수 없어 대시보드 데이터에 접근하지 못할 수 있어요.</p>
+      <p class="lede" id="teacher-db-warn" ${(App.capsReady && !App.db)?'':'hidden'}>⚠ ${App.backend==='firebase'?'서버에 연결하지 못해':'현재 로그인 상태를 확인할 수 없어'} 대시보드 데이터에 접근하지 못할 수 있어요.</p>
     </div>`;
 }
 // 학생도 classConfig 문서를 읽을 수 있으므로 비밀번호는 평문이 아닌 해시로만 저장한다.
@@ -1642,6 +1691,37 @@ async function hashPass(classroom, pass){
   const buf = await crypto.subtle.digest('SHA-256', bytes);
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+/* Firebase 교사 인증 — 비밀번호 검증을 Firestore 보안 규칙(firestore.rules)이 서버에서 한다.
+   secret = SHA-256(학급+비밀번호), classSecrets/{학급}.passHash = SHA-256(secret) (아무도 읽을 수 없음).
+   classUnlocks/{uid}_{학급}에 secret을 쓰면 규칙이 해시를 비교해 맞을 때만 허용하고,
+   classConfig 수정은 그 잠금 해제 문서가 있는 기기(익명 uid)만 할 수 있다.
+   반환: 'created'(새 학급) | 'ok' | 'wrong' */
+async function firebaseTeacherLogin(classroom, pass){
+  const id = safeId(classroom);
+  const secret = await hashPass(classroom, pass);
+  const uid = App.db.uid();
+  const unlock = ['classUnlocks/'+uid+'_'+id, {classId:id, secret, uid, at:new Date().toISOString()}];
+  const snap = await App.db.doc('classConfig/'+id).get();
+  if(!snap.exists){
+    await App.db.batchSet([
+      ['classSecrets/'+id, {passHash: await sha256Hex(secret)}],
+      ['classConfig/'+id, {classroom, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString()}],
+      unlock
+    ]);
+    return 'created';
+  }
+  try{
+    await App.db.doc(unlock[0]).set(unlock[1]);
+    return 'ok';
+  }catch(e){
+    if(e && e.code==='permission-denied') return 'wrong';
+    throw e;
+  }
+}
 async function handleTeacherLogin(form){
   const classroom = form.querySelector('#t-class').value.trim();
   const pass = form.querySelector('#t-pass').value;
@@ -1649,7 +1729,22 @@ async function handleTeacherLogin(form){
   if(!classroom || !pass){ errEl.textContent='학급 코드와 비밀번호를 입력해 주세요.'; errEl.hidden=false; return; }
   showLoading('확인하는 중…');
   await capsReady();
-  if(!App.db){ hideLoading(); errEl.textContent='로그인 상태를 확인할 수 없어 대시보드를 열 수 없어요.'; errEl.hidden=false; return; }
+  if(!App.db){ hideLoading(); errEl.textContent = App.backend==='firebase' ? '서버에 연결하지 못해 대시보드를 열 수 없어요.' : '로그인 상태를 확인할 수 없어 대시보드를 열 수 없어요.'; errEl.hidden=false; return; }
+  if(App.db.kind==='firebase'){
+    try{
+      const res = await firebaseTeacherLogin(classroom, pass);
+      hideLoading();
+      if(res==='wrong'){ errEl.textContent='비밀번호가 올바르지 않습니다.'; errEl.hidden=false; return; }
+      if(res==='created') toast('새 학급 비밀번호가 설정됐어요.');
+      App.teacher = {classroom, id:safeId(classroom), data:null, rankTab:'overall'};
+      renderTeacherDashboard();
+    }catch(e){
+      console.error(e);
+      hideLoading();
+      errEl.textContent='연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; errEl.hidden=false;
+    }
+    return;
+  }
   try{
     const id = safeId(classroom);
     const ref = App.db.doc('classConfig/'+id);
@@ -1828,6 +1923,13 @@ async function exportCSV(){
       await App.downloadsCap.save({filename:`sudoku_${App.teacher.classroom.replace(/[\\/:*?"<>|]/g,'_')}.csv`, data: csv});
       toast('CSV 파일을 저장했어요.');
     }catch(e){ toast('다운로드가 취소되었거나 실패했어요.'); }
+  } else if(App.backend==='firebase'){
+    // 일반 웹 배포본: 브라우저 기본 다운로드
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+    a.download=`sudoku_${App.teacher.classroom.replace(/[\\/:*?"<>|]/g,'_')}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
   } else {
     toast('이 환경에서는 다운로드를 지원하지 않아요.');
   }

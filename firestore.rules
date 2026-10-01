@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// 스도쿠 교실 Firestore 보안 규칙
+// - 학생: 익명 로그인. 프로필·풀이 기록을 읽고 쓸 수 있다(형식 검사).
+// - 교사: 학급 코드 + 비밀번호. 비밀번호 검증은 여기서 한다.
+//     classSecrets/{학급}.passHash = SHA-256(secret)   ← 아무도 읽을 수 없음
+//     classUnlocks/{uid}_{학급}에 secret을 쓰면 해시가 맞을 때만 허용
+//     classConfig/{학급} 수정은 그 잠금 해제 문서가 있는 사용자(uid)만 가능
+//   (secret = 앱이 계산한 SHA-256('sudoku-classroom:'+학급+':'+비밀번호))
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function optStr(d, k, max) { return !(k in d) || d[k] == null || (d[k] is string && d[k].size() <= max); }
+    function optNum(d, k) { return !(k in d) || d[k] == null || d[k] is number; }
+    function unlockPath(classId) {
+      return /databases/$(database)/documents/classUnlocks/$(request.auth.uid + '_' + classId);
+    }
+
+    // ---------- 학생 프로필 (학생당 1건) ----------
+    function validProfile(d) {
+      return d.keys().hasOnly(['studentName','classroom','totalXP','level','badges','totalCompleted',
+                               'streakDays','lastPlayedDate','tutorialLevel','boardSizePref','bestDifficulty',
+                               'avatar','bests','lastMode'])
+        && str(d.studentName, 20) && str(d.classroom, 20)
+        && d.totalXP is number && d.totalXP >= 0 && d.totalXP <= 10000000
+        && optNum(d, 'level') && optNum(d, 'totalCompleted') && optNum(d, 'streakDays')
+        && optNum(d, 'tutorialLevel') && optNum(d, 'boardSizePref')
+        && optStr(d, 'lastPlayedDate', 40) && optStr(d, 'bestDifficulty', 10)
+        && optStr(d, 'avatar', 8) && optStr(d, 'lastMode', 10)
+        && (!('badges' in d) || (d.badges is list && d.badges.size() <= 10))
+        && (!('bests' in d) || (d.bests is map && d.bests.size() <= 4));
+    }
+    match /profiles/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && validProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---------- 풀이 기록 (완료할 때마다 1건, 수정 불가) ----------
+    match /sessions/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['studentKeyId','studentName','classroom','kind','level','difficulty',
+              'boardSize','durationSec','mistakeCount','hintCount','completed','xpEarned','stars','maxCombo',
+              'recordScore','startedAt','finishedAt'])
+        && str(request.resource.data.studentName, 20) && str(request.resource.data.classroom, 20);
+      allow update, delete: if false;
+    }
+
+    // ---------- 학급 설정 (교사만 수정) ----------
+    function validConfig(d) {
+      return d.keys().hasOnly(['classroom','isAssigned','assignedBoardSize','assignedLevel',
+                               'rankingVisibility','createdAt','assignedAt'])
+        && str(d.classroom, 20) && d.isAssigned is bool
+        && d.assignedBoardSize in [4, 6, 9] && d.assignedLevel in [0, 1, 2, 3, 4]
+        && d.rankingVisibility in ['top3', 'top50', 'all'];
+    }
+    match /classConfig/{classId} {
+      allow read: if signedIn();
+      // 새 학급은 classSecrets·classConfig·classUnlocks를 한 번에(batch) 만든다
+      allow create: if signedIn() && existsAfter(unlockPath(classId)) && validConfig(request.resource.data);
+      allow update: if signedIn() && exists(unlockPath(classId)) && validConfig(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ---------- 교사 비밀번호 해시 (읽기 불가, 처음 만든 사람만) ----------
+    match /classSecrets/{classId} {
+      allow read: if false;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['passHash'])
+        && request.resource.data.passHash is string && request.resource.data.passHash.size() == 64;
+      allow update, delete: if false;
+    }
+
+    // ---------- 교사 잠금 해제 (비밀번호가 맞을 때만 쓸 수 있음, 읽기 불가) ----------
+    match /classUnlocks/{unlockId} {
+      allow read: if false;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['classId','secret','uid','at'])
+        && request.resource.data.classId is string
+        && request.resource.data.secret is string
+        && request.resource.data.uid == request.auth.uid
+        && unlockId == request.auth.uid + '_' + request.resource.data.classId
+        && hashing.sha256(request.resource.data.secret).toHexString().lower()
+             == getAfter(/databases/$(database)/documents/classSecrets/$(request.resource.data.classId)).data.passHash;
+      allow delete: if false;
+    }
+  }
+}

@@ -6,6 +6,7 @@
 
 - `index.html` — 실제 앱(학생 플레이 화면 + 교사 대시보드). 단일 HTML 파일, 외부 라이브러리 없이 순수 JS로 작성.
 - `plan.html` — 프로젝트 계획서(기획 문서). 기능 정의와 설계 근거를 담고 있어, 기능을 바꿀 때 먼저 참고할 것.
+- Firebase 배포용: `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `firebase-config.json`(웹 앱 설정 — 공개돼도 되는 값), `scripts/build-hosting.mjs`(조각 HTML → `public/` 완전한 문서 + 설정 주입, `firebase deploy` 전에 자동 실행), `tests/`(보안 규칙·E2E 테스트). 배포 절차는 `FIREBASE.md`.
 
 Claude 아티팩트로 배포되어 있다 (`/artifacts`로 조회):
 - 앱: https://claude.ai/artifact/URSBNqAgU2PJwpMTaT2aaP — **akrenddl7@gmail.com 개인 계정** 소유 (2026-10-01 새로 배포, capabilities: `db`, `downloads`)
@@ -29,6 +30,8 @@ Claude 아티팩트로 배포되어 있다 (`/artifacts`로 조회):
 
 ## 데이터 저장과 핵심 제약
 
+**저장소 두 가지, 코드는 하나**: `index.html`은 조각 HTML(아티팩트 형식) 그대로 두고, Firebase 빌드만 `window.SUDOKU_FIREBASE_CONFIG`를 주입한다. `initCaps()`가 이 값이 있으면 `initFirebase()`(gstatic CDN에서 Firebase SDK 12.19.0 동적 import + 익명 로그인)로, 없으면 Claude `db` 캡서빌리티로 연결한다. 둘 다 `doc().get/set/update`, `collection().add/where().get` 같은 모양의 객체라 앱 나머지 코드는 저장소를 구분하지 않는다. 예외는 교사 로그인(`firebaseTeacherLogin` vs 기존 classConfig.passHash 방식)과 CSV 다운로드(Firebase는 브라우저 기본 다운로드)뿐. Firestore 규칙의 `keys().hasOnly([...])` 때문에 **프로필·세션·classConfig에 새 필드를 추가하면 `firestore.rules`도 같이 고쳐야** 저장이 거부되지 않는다.
+
 학생 식별자는 로그인 없이 **이름 + 학급** 조합이다(`studentKeyStr`). 한글이 포함된 문자열은 그대로 DB 문서 ID로 쓸 수 없어서, `safeId()`로 UTF-8 → base64(URL-safe) 인코딩한 뒤 문서 ID로 쓰고, 원본 이름/학급은 문서 필드에 그대로 저장해 조회(`where('classroom','==',...)`)에 쓴다.
 
 Claude 아티팩트의 `db` 캡서빌리티(컬렉션: `profiles`, `sessions`, `classConfig`)로 기기 간 동기화와 교사 대시보드 집계를 구현했고, `db`가 불가능하면(미로그인 등) `localStorage`로 조용히 폴백한다 — 두 경로 모두 `saveProfile`/`recordSession`에서 함께 처리.
@@ -39,7 +42,9 @@ Claude 아티팩트의 `db` 캡서빌리티(컬렉션: `profiles`, `sessions`, `
 
 반대로 **db를 읽고 쓰는 동작(학생 입장·교사 로그인)은 `await capsReady()`로 db 협상을 기다려야 한다.** 기다리지 않으면 db 없이 기본 프로필로 시작했다가 이후 db가 붙은 뒤 `saveProfile`이 서버의 기존 진행 기록을 빈 프로필로 덮어쓴다. `db`와 `downloads`는 병렬로 요청하고, 입장은 `db`만 기다린다(15초 타임아웃 후 localStorage 폴백).
 
-교사 비밀번호는 `classConfig.passHash`(학급+비밀번호 SHA-256)로만 저장한다 — 학생도 classConfig를 읽을 수 있기 때문. 예전 평문 `passcode`가 남은 학급은 다음 로그인 때 해시로 옮겨지고 평문은 지워진다. db에서 읽은 값은 학생이 쓸 수 있는 데이터이므로 HTML에 넣을 때 항상 `esc()`를 거친다.
+Firebase 교사 인증: secret = SHA-256('sudoku-classroom:'+학급+':'+비밀번호), `classSecrets/{학급}.passHash` = SHA-256(secret)(읽기 불가). 로그인은 `classUnlocks/{uid}_{학급}`에 secret을 쓰는 것이고, 규칙이 `hashing.sha256(secret)`을 비교해 맞을 때만 허용한다. `classConfig` 수정은 그 잠금 해제 문서가 있는 uid만 가능. 새 학급은 세 문서를 batch 한 번으로 만든다(`existsAfter`/`getAfter`).
+
+Claude 아티팩트에서는 교사 비밀번호를 `classConfig.passHash`(학급+비밀번호 SHA-256)로만 저장한다 — 학생도 classConfig를 읽을 수 있기 때문. 예전 평문 `passcode`가 남은 학급은 다음 로그인 때 해시로 옮겨지고 평문은 지워진다. db에서 읽은 값은 학생이 쓸 수 있는 데이터이므로 HTML에 넣을 때 항상 `esc()`를 거친다.
 
 ## 알려진 운영 이슈
 
@@ -51,4 +56,5 @@ Claude 아티팩트의 `db` 캡서빌리티(컬렉션: `profiles`, `sessions`, `
 1. 기능을 바꾸기 전 `plan.html`의 관련 섹션을 먼저 확인/업데이트.
 2. `index.html` 수정 후, 가능하면 `node --check`로 `<script>` 구문 검사를 하고, jsdom으로 핵심 화면 전환(홈→학생 입장→퍼즐→완료→랭킹, 교사 로그인→지정 모드)이 에러 없이 동작하는지 시뮬레이션해본 뒤 배포한다. 가짜 db는 실제처럼 `data()`가 **동결된 객체**를 돌려주게 만들어야 수정 버그를 잡을 수 있다. 퍼즐은 테스트 쪽에서 화면의 주어진 칸을 읽어 직접 풀어 입력하면 된다. 스도쿠 생성기처럼 로직이 있는 부분은 Node로 직접 실행해 단서 수·유일해 여부를 검증하는 편이 빠르다.
    - 디자인 확인은 헤드리스 Chrome 스크린샷(`--headless=new --screenshot --virtual-time-budget`)으로 한다. 헤드리스 창은 최소 폭이 500px라서 모바일(390px)은 iframe에 넣어 찍어야 하고, CSS 애니메이션·전환은 가상 시간에서 멈춘 프레임으로 찍힐 수 있다(별·진행 막대가 비어 보이는 건 대개 이 때문).
-3. Artifact 도구로 같은 `url`을 지정해 재배포해야 기존 링크가 갱신된다. `capabilities`는 생략하면 기존 설정이 유지되고, 명시하면 전체가 그 값으로 대체된다.
+3. Firebase 쪽은 `npm run test:rules`(규칙 22항목)와 `npm run test:e2e`(Hosting 에뮬레이터 + puppeteer-core로 실제 앱 조작)로 확인한다. 에뮬레이터는 Java 11+가 필요하다.
+4. Artifact 도구로 같은 `url`을 지정해 재배포해야 기존 링크가 갱신된다. Firebase 쪽은 `npm run deploy`. `capabilities`는 생략하면 기존 설정이 유지되고, 명시하면 전체가 그 값으로 대체된다.
