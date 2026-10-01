@@ -280,24 +280,47 @@ function generateSolved(n){
   fill(0);
   return g;
 }
+function popcount(x){ let k=0; while(x){ x&=x-1; k++; } return k; }
+// 비트마스크 + MRV(후보가 가장 적은 칸부터) 백트래킹. 유일해 검증을 빠르게 하기 위함.
 function solveCount(grid,n,bw,bh,limitCount,nodeBudget){
   let count=0, nodes=0, hitBudget=false;
-  const g=grid.map(r=>r.slice());
-  function findEmpty(){ for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(g[r][c]===0) return [r,c]; return null; }
-  function backtrack(){
-    if(hitBudget||count>=limitCount) return;
-    nodes++; if(nodes>nodeBudget){ hitBudget=true; return; }
-    const pos=findEmpty();
-    if(!pos){ count++; return; }
-    const [r,c]=pos;
-    for(let v=1; v<=n; v++){
-      if(isSafe(g,n,bw,bh,r,c,v)){
-        g[r][c]=v; backtrack(); g[r][c]=0;
-        if(hitBudget||count>=limitCount) return;
-      }
-    }
+  const boxesPerRow=n/bw;
+  const boxOf=(r,c)=>Math.floor(r/bh)*boxesPerRow+Math.floor(c/bw);
+  const full=(1<<(n+1))-2;
+  const rows=Array(n).fill(0), cols=Array(n).fill(0), boxes=Array(n).fill(0);
+  const empties=[];
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++){
+    const v=grid[r][c];
+    if(v){ const b=1<<v; rows[r]|=b; cols[c]|=b; boxes[boxOf(r,c)]|=b; }
+    else empties.push([r,c,boxOf(r,c)]);
   }
-  backtrack();
+  const filled=new Uint8Array(empties.length);
+  function backtrack(left){
+    if(hitBudget||count>=limitCount) return;
+    if(++nodes>nodeBudget){ hitBudget=true; return; }
+    if(left===0){ count++; return; }
+    let best=-1, bestMask=0, bestCnt=99;
+    for(let i=0;i<empties.length;i++){
+      if(filled[i]) continue;
+      const [r,c,bx]=empties[i];
+      const m=full & ~(rows[r]|cols[c]|boxes[bx]);
+      const k=popcount(m);
+      if(k<bestCnt){ best=i; bestMask=m; bestCnt=k; if(k<=1) break; }
+    }
+    if(bestCnt===0) return;
+    const [r,c,bx]=empties[best];
+    filled[best]=1;
+    for(let v=1; v<=n; v++){
+      const b=1<<v;
+      if(!(bestMask&b)) continue;
+      rows[r]|=b; cols[c]|=b; boxes[bx]|=b;
+      backtrack(left-1);
+      rows[r]&=~b; cols[c]&=~b; boxes[bx]&=~b;
+      if(hitBudget||count>=limitCount) break;
+    }
+    filled[best]=0;
+  }
+  backtrack(empties.length);
   return {count,hitBudget};
 }
 function generatePuzzle(n,clueTarget){
@@ -313,8 +336,9 @@ function generatePuzzle(n,clueTarget){
     if(puzzle[r][c]===0) continue;
     const backup=puzzle[r][c];
     puzzle[r][c]=0;
-    const {count}=solveCount(puzzle,n,bw,bh,2,nodeBudget);
-    if(count!==1) puzzle[r][c]=backup; else clues--;
+    // 예산 초과(hitBudget)면 유일해가 검증되지 않은 것이므로 제거를 포기한다.
+    const {count,hitBudget}=solveCount(puzzle,n,bw,bh,2,nodeBudget);
+    if(count!==1 || hitBudget) puzzle[r][c]=backup; else clues--;
   }
   return {puzzle,solution,bw,bh,n};
 }
@@ -362,20 +386,30 @@ const App = {
   assigned:null, session:null, teacher:{classroom:null,id:null}
 };
 
-async function initCaps(){
-  try{
-    if(window.claude && typeof window.claude.use==='function'){
-      App.db = await window.claude.use('db');
-    }
-  }catch(e){ App.db=null; }
-  try{
-    if(window.claude && typeof window.claude.use==='function'){
-      App.downloadsCap = await window.claude.use('downloads');
-    }
-  }catch(e){ App.downloadsCap=null; }
-  App.capsReady = true;
-  if(App.screen==='teacher-login') renderTeacherLogin();
+// 캡서빌리티 협상은 수 초 걸릴 수 있다. db와 downloads를 병렬로 요청하고,
+// 응답이 없으면 CAPS_TIMEOUT_MS 뒤 db 없음(localStorage 폴백)으로 확정한다.
+const CAPS_TIMEOUT_MS = 15000;
+function useCap(name){
+  if(!(window.claude && typeof window.claude.use==='function')) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    const t=setTimeout(()=>resolve(null), CAPS_TIMEOUT_MS);
+    Promise.resolve().then(()=>window.claude.use(name))
+      .then(v=>{ clearTimeout(t); resolve(v||null); }, ()=>{ clearTimeout(t); resolve(null); });
+  });
 }
+function initCaps(){
+  useCap('downloads').then(c=>{ App.downloadsCap=c; });
+  return useCap('db').then(db=>{
+    App.db = db; App.capsReady = true;
+    const warn = document.getElementById('teacher-db-warn');
+    if(warn) warn.hidden = !!App.db;
+  });
+}
+// 첫 화면은 기다리지 않고 그리되, db를 쓰는 동작(입장·교사 로그인)은 db 협상이 끝날 때까지 기다린다.
+// 기다리지 않으면 db 없이 기본 프로필로 시작했다가, 나중에 db가 붙은 뒤 서버 기록을 덮어쓸 수 있다.
+// (타임아웃 이후 늦게 도착한 db는 같은 이유로 쓰지 않는다 — Promise는 한 번만 resolve된다.)
+let capsPromise = null;
+function capsReady(){ return capsPromise || (capsPromise = initCaps()); }
 
 async function loadProfile(name,classroom){
   const key = studentKeyStr(name,classroom);
@@ -387,7 +421,9 @@ async function loadProfile(name,classroom){
       if(snap.exists) profile = snap.data();
     }catch(e){}
   }
-  if(!profile) profile = defaultProfile(name,classroom);
+  // 예전 버전에서 저장된 문서에 빠진 필드가 있어도 동작하도록 기본값과 병합
+  profile = Object.assign(defaultProfile(name,classroom), profile||{});
+  if(!Array.isArray(profile.badges)) profile.badges=[];
   return {id,key,profile};
 }
 function saveProfile(id,profile){
@@ -510,12 +546,14 @@ async function handleEntrySubmit(form){
   errEl.hidden=true;
   lsSet('last_login',{name,classroom});
   showLoading('내 기록을 불러오는 중…');
-  App.name=name; App.classroom=classroom;
-  const {id,profile} = await loadProfile(name,classroom);
-  App.profileId=id; App.profile=profile;
-  const cc = await getClassConfig(classroom);
-  App.assigned = (cc.data && cc.data.isAssigned) ? {size:cc.data.assignedBoardSize, level:cc.data.assignedLevel} : null;
-  hideLoading();
+  try{
+    await capsReady();
+    App.name=name; App.classroom=classroom;
+    const {id,profile} = await loadProfile(name,classroom);
+    App.profileId=id; App.profile=profile;
+    const cc = await getClassConfig(classroom);
+    App.assigned = (cc.data && cc.data.isAssigned) ? {size:+cc.data.assignedBoardSize||9, level:+cc.data.assignedLevel||0} : null;
+  }finally{ hideLoading(); }
   routeAfterEntry();
 }
 
@@ -523,11 +561,11 @@ function routeAfterEntry(){
   renderTopbar();
   if(App.assigned){
     if(App.assigned.level>=4){ App.screen='difficulty'; renderDifficultySelect(); return; }
-    const lvl = Math.max(App.assigned.level,1);
-    if(lvl<=1 || App.profile.tutorialLevel===0){
+    // 규칙 화면은 교사가 Lv.0을 지정했거나, 학생이 아직 한 번도 보지 않았을 때만
+    if(App.assigned.level===0 || App.profile.tutorialLevel===0){
       App.screen='rules'; renderRules(); return;
     }
-    startTutorialPuzzle(lvl, App.assigned.size);
+    startTutorialPuzzle(App.assigned.level, App.assigned.size);
     return;
   }
   if(App.profile.tutorialLevel>=4){ App.screen='difficulty'; renderDifficultySelect(); return; }
@@ -628,6 +666,7 @@ function startFreePuzzle(difficulty){
 }
 function beginSession(cfg){
   const n = cfg.size;
+  if(App.session && App.session.timerHandle) clearInterval(App.session.timerHandle);
   App.session = {
     kind:cfg.kind, level:cfg.level, difficulty:cfg.difficulty, size:n,
     bw:cfg.data.bw, bh:cfg.data.bh, solution:cfg.data.solution,
@@ -661,13 +700,13 @@ function renderPlay(){
         <div class="toolrow">
           <button data-action="toggle-notes" id="btn-notes" ${s.autoCandidates?'disabled':''}>✏️ 메모</button>
           <button data-action="erase">지우기</button>
-          <button data-action="hint">💡 힌트 (${hintsLabel})</button>
+          <button data-action="hint" id="btn-hint">💡 힌트 (${hintsLabel})</button>
           <button data-action="give-up">그만하기</button>
         </div>
       </div>
       <div class="side-col">
         <div class="stat-row">
-          <div class="stat-tile"><div class="lab">시간</div><div class="val mono" id="stat-timer">00:00</div></div>
+          <div class="stat-tile"><div class="lab">시간</div><div class="val mono" id="stat-timer">${fmtTime(s.elapsed)}</div></div>
           <div class="stat-tile ${s.mistakes>0?'bad':''}"><div class="lab">실수</div><div class="val mono" id="stat-mistakes">${s.mistakes}</div></div>
         </div>
         ${s.autoCandidates ? '<div class="card" style="padding:14px;font-size:13px;color:var(--ink-soft);">가이드 모드: 빈 칸에 넣을 수 있는 숫자가 자동으로 표시돼요.</div>' : ''}
@@ -757,7 +796,8 @@ function renderBoard(){
 }
 function selectCell(r,c){
   const s=App.session;
-  if(s.given[r][c]) { s.selected=null; renderBoard(); return; }
+  // 주어진 칸도 선택(강조)은 허용한다 — 입력/지우기/힌트는 각 함수에서 막는다.
+  // 예전에는 선택을 해제해서 방향키 이동이 주어진 칸에서 멈췄다.
   s.selected={r,c};
   renderBoard();
 }
@@ -795,12 +835,15 @@ function useHint(){
   if(!s.selected){ toast('먼저 칸을 선택해 주세요.'); return; }
   if(s.hintsMax!==Infinity && s.hintsUsed>=s.hintsMax){ toast('힌트를 모두 사용했어요.'); return; }
   const {r,c}=s.selected;
-  if(s.given[r][c] || s.grid[r][c]===s.solution[r][c]){ toast('이미 맞는 칸이에요.'); return; }
+  if(s.given[r][c]){ toast('처음부터 주어진 칸이에요.'); return; }
+  if(s.grid[r][c]===s.solution[r][c]){ toast('이미 맞는 칸이에요.'); return; }
   s.grid[r][c]=s.solution[r][c];
   s.hintedCells[r+','+c]=true;
   delete s.notes[r+','+c];
   if(s.hintsMax!==Infinity) s.hintsUsed++;
-  renderPlay();
+  const hb=document.getElementById('btn-hint');
+  if(hb) hb.textContent=`💡 힌트 (${s.hintsMax===Infinity?'무제한':s.hintsMax-s.hintsUsed})`;
+  renderBoard();
   checkComplete();
 }
 function toggleNotes(){
@@ -946,8 +989,8 @@ async function renderRanking(){
         <thead><tr><th>순위</th><th>이름</th><th>레벨</th><th class="mono">누적 XP</th><th class="mono">연속참여</th></tr></thead>
         <tbody>
           ${shown.map((r,i)=>`<tr class="${r.studentName===App.name?'me':''}">
-            <td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${r.level}</td>
-            <td class="mono">${r.totalXP}</td><td class="mono">${r.streakDays||0}일</td></tr>`).join('')}
+            <td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${esc(r.level)}</td>
+            <td class="mono">${esc(r.totalXP||0)}</td><td class="mono">${esc(r.streakDays||0)}일</td></tr>`).join('')}
         </tbody>
       </table></div>
       ${(vis!=='all' && myIndex>=shown.length) ? `<p class="lede" style="margin-top:12px;">내 순위: ${myIndex+1}위 (전체 ${rows.length}명 중)</p>`:''}
@@ -969,26 +1012,38 @@ function renderTeacherLogin(){
         <div id="teacher-err" class="err-text" hidden></div>
         <button class="btn btn-warm btn-block" type="submit">들어가기</button>
       </form>
-      ${!App.db ? '<p class="lede">⚠ 현재 로그인 상태를 확인할 수 없어 대시보드 데이터에 접근하지 못할 수 있어요.</p>':''}
+      <p class="lede" id="teacher-db-warn" ${(App.capsReady && !App.db)?'':'hidden'}>⚠ 현재 로그인 상태를 확인할 수 없어 대시보드 데이터에 접근하지 못할 수 있어요.</p>
     </div>`;
+}
+// 학생도 classConfig 문서를 읽을 수 있으므로 비밀번호는 평문이 아닌 해시로만 저장한다.
+async function hashPass(classroom, pass){
+  const bytes = new TextEncoder().encode('sudoku-classroom:'+classroom+':'+pass);
+  const buf = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 async function handleTeacherLogin(form){
   const classroom = form.querySelector('#t-class').value.trim();
   const pass = form.querySelector('#t-pass').value;
   const errEl = form.querySelector('#teacher-err');
   if(!classroom || !pass){ errEl.textContent='학급 코드와 비밀번호를 입력해 주세요.'; errEl.hidden=false; return; }
-  if(!App.db){ errEl.textContent='로그인 상태를 확인할 수 없어 대시보드를 열 수 없어요.'; errEl.hidden=false; return; }
   showLoading('확인하는 중…');
+  await capsReady();
+  if(!App.db){ hideLoading(); errEl.textContent='로그인 상태를 확인할 수 없어 대시보드를 열 수 없어요.'; errEl.hidden=false; return; }
   try{
     const id = safeId(classroom);
     const ref = App.db.doc('classConfig/'+id);
     const snap = await ref.get();
-    if(!snap.exists || !snap.data().passcode){
-      await ref.set({ classroom, passcode:pass, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString() });
+    const hash = await hashPass(classroom, pass);
+    const cur = snap.exists ? snap.data() : null;
+    if(!cur || (!cur.passHash && !cur.passcode)){
+      await ref.set({ classroom, passHash:hash, isAssigned:false, assignedBoardSize:9, assignedLevel:4, rankingVisibility:'all', createdAt:new Date().toISOString() });
       toast('새 학급 비밀번호가 설정됐어요.');
-    } else if(snap.data().passcode!==pass){
+    } else if(cur.passHash ? cur.passHash!==hash : cur.passcode!==pass){
       hideLoading();
       errEl.textContent='비밀번호가 올바르지 않습니다.'; errEl.hidden=false; return;
+    } else if(!cur.passHash){
+      // 예전 버전의 평문 비밀번호를 해시로 옮기고 평문은 지운다
+      await ref.update({ passHash:hash, passcode:null });
     }
     App.teacher = {classroom, id};
     hideLoading();
@@ -1046,7 +1101,7 @@ function buildDashboardHTML(cc,profiles,sessions){
       <div class="stat-tile"><div class="lab">참여 학생</div><div class="val mono">${totalStudents}</div></div>
       <div class="stat-tile"><div class="lab">총 완료 수</div><div class="val mono">${totalCompleted}</div></div>
       <div class="stat-tile"><div class="lab">평균 실수</div><div class="val mono">${avgMistakes}</div></div>
-      <div class="stat-tile"><div class="lab">가장 많이 한 단계</div><div class="val mono" style="font-size:14px;">${diffTop?diffTop[0]:'-'}</div></div>
+      <div class="stat-tile"><div class="lab">가장 많이 한 단계</div><div class="val mono" style="font-size:14px;">${diffTop?esc(diffTop[0]):'-'}</div></div>
     </div>
 
     <h2 class="section-title">학습 단계 일괄 지정</h2>
@@ -1085,7 +1140,7 @@ function buildDashboardHTML(cc,profiles,sessions){
     <div class="tblwrap" style="margin-bottom:30px;">
       <table><thead><tr><th>순위</th><th>이름</th><th>레벨</th><th class="mono">누적 XP</th><th class="mono">완료 수</th><th class="mono">연속참여</th></tr></thead>
       <tbody>
-        ${ranked.length? ranked.map((r,i)=>`<tr><td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${r.level}</td><td class="mono">${r.totalXP}</td><td class="mono">${r.totalCompleted||0}</td><td class="mono">${r.streakDays||0}일</td></tr>`).join('') : '<tr><td colspan="6" style="color:var(--muted)">아직 참여한 학생이 없어요.</td></tr>'}
+        ${ranked.length? ranked.map((r,i)=>`<tr><td class="rk">${i+1}</td><td>${esc(r.studentName)}</td><td>${badgeForLevel(r.level)} · Lv.${esc(r.level)}</td><td class="mono">${esc(r.totalXP||0)}</td><td class="mono">${esc(r.totalCompleted||0)}</td><td class="mono">${esc(r.streakDays||0)}일</td></tr>`).join('') : '<tr><td colspan="6" style="color:var(--muted)">아직 참여한 학생이 없어요.</td></tr>'}
       </tbody></table>
     </div>
 
@@ -1093,7 +1148,7 @@ function buildDashboardHTML(cc,profiles,sessions){
     <div class="tblwrap">
       <table><thead><tr><th>이름</th><th>튜토리얼</th><th>최고 난이도</th><th class="mono">완료 수</th><th class="mono">XP</th></tr></thead>
       <tbody>
-        ${profiles.length ? profiles.map(p=>`<tr class="clickable" data-action="student-row" data-name="${esc(p.studentName)}"><td>${esc(p.studentName)}</td><td>Lv.${p.tutorialLevel}</td><td>${p.bestDifficulty?DIFF_LABEL[p.bestDifficulty]:'-'}</td><td class="mono">${p.totalCompleted||0}</td><td class="mono">${p.totalXP||0}</td></tr>`).join('') : '<tr><td colspan="5" style="color:var(--muted)">기록이 없어요.</td></tr>'}
+        ${profiles.length ? profiles.map(p=>`<tr class="clickable" tabindex="0" data-action="student-row" data-name="${esc(p.studentName)}"><td>${esc(p.studentName)}</td><td>Lv.${esc(p.tutorialLevel)}</td><td>${esc(DIFF_LABEL[p.bestDifficulty]||'-')}</td><td class="mono">${esc(p.totalCompleted||0)}</td><td class="mono">${esc(p.totalXP||0)}</td></tr>`).join('') : '<tr><td colspan="5" style="color:var(--muted)">기록이 없어요.</td></tr>'}
       </tbody></table>
     </div>
     <div id="student-detail"></div>
@@ -1106,7 +1161,7 @@ function showStudentDetail(name){
   el.innerHTML = `
     <h2 class="section-title">${esc(name)}님의 최근 기록</h2>
     <div class="tblwrap"><table><thead><tr><th>단계/난이도</th><th class="mono">크기</th><th class="mono">시간</th><th class="mono">실수</th><th class="mono">힌트</th><th class="mono">XP</th></tr></thead>
-      <tbody>${rows.length? rows.map(r=>`<tr><td>${r.difficulty?DIFF_LABEL[r.difficulty]:'Lv.'+r.level}</td><td class="mono">${r.boardSize}×${r.boardSize}</td><td class="mono">${fmtTime(r.durationSec||0)}</td><td class="mono">${r.mistakeCount||0}</td><td class="mono">${r.hintCount||0}</td><td class="mono">${r.xpEarned||0}</td></tr>`).join(''):'<tr><td colspan="6">기록 없음</td></tr>'}</tbody>
+      <tbody>${rows.length? rows.map(r=>`<tr><td>${esc(r.difficulty?(DIFF_LABEL[r.difficulty]||r.difficulty):'Lv.'+r.level)}</td><td class="mono">${esc(r.boardSize)}×${esc(r.boardSize)}</td><td class="mono">${fmtTime(+r.durationSec||0)}</td><td class="mono">${esc(r.mistakeCount||0)}</td><td class="mono">${esc(r.hintCount||0)}</td><td class="mono">${esc(r.xpEarned||0)}</td></tr>`).join(''):'<tr><td colspan="6">기록 없음</td></tr>'}</tbody>
     </table></div>`;
   el.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -1184,10 +1239,17 @@ document.addEventListener('click', (e)=>{
   }
 });
 
+// tabindex로 포커스되는 카드(div)도 Enter/Space로 누를 수 있게
+document.addEventListener('keydown',(e)=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const t=e.target;
+  if(t && t.matches && t.matches('div[data-action][tabindex], tr[data-action]')){ e.preventDefault(); t.click(); }
+});
+
 document.addEventListener('keydown',(e)=>{
   if(App.screen!=='play' || !App.session) return;
   const s=App.session;
-  if(e.key>='1' && e.key<=String(s.size)){ inputNumber(+e.key); return; }
+  if(/^[1-9]$/.test(e.key) && +e.key<=s.size){ inputNumber(+e.key); return; }
   if(e.key==='Backspace' || e.key==='Delete'){ eraseCell(); return; }
   if(!s.selected) return;
   let {r,c}=s.selected;
@@ -1202,6 +1264,6 @@ document.addEventListener('keydown',(e)=>{
 
 /* ========================= Boot ========================= */
 renderHome();
-initCaps();
+capsReady();
 })();
 </script>
