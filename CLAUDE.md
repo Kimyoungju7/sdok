@@ -29,7 +29,7 @@
 - `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `firebase-config.json`: Firebase 설정.
   - `firebase-config.json`의 웹 앱 설정은 공개돼도 되는 값이다. 접근 제어는 보안 규칙이 한다.
 - `tests/`
-  - `app-flow.test.cjs`: jsdom 앱 흐름 81항목
+  - `app-flow.test.cjs`: jsdom 앱 흐름 86항목
   - `firestore-rules.test.mjs`: 규칙 29항목
   - `e2e.mjs`: 에뮬레이터 + Chrome 17항목
 - `FIREBASE.md`: 처음부터 배포하는 절차(콘솔 설정, 로그인, 배포).
@@ -90,6 +90,7 @@ npm run deploy         # 운영 배포
 - 힌트는 두 가지로 센다.
   - `hintsUsed`: 힌트 제한과 XP 감점용. 무제한 단계에서는 세지 않는다.
   - `hintsTaken`: 실제 사용 수. 별점, 보정 기록, 세션 기록에 쓴다.
+  - 힌트로 채운 칸(`hintedCells`)은 주어진 칸처럼 고정된다. 지우거나 다른 숫자로 바꿀 수 없다.
   - 힌트 무제한 단계(연습 Lv.1·2)의 XP는 `hintsTaken`/빈칸 수 비율만큼 깎는다. 힌트만으로 채우면 0 XP다(교사가 지정한 Lv.1·2를 반복해 XP를 쌓는 것 방지).
 - CSV 내보내기는 `=`, `+`, `-`, `@`로 시작하는 값 앞에 `'`를 붙인다(엑셀 수식 주입 방지).
 
@@ -131,6 +132,7 @@ npm run deploy         # 운영 배포
 - **db가 있는데 프로필 읽기가 실패하면 입장시키지 않는다.** `loadProfile()`은 오류를 던지고, `doEntry()`는 입장 화면에 오류를 띄운다. 예전에는 오류를 삼키고 기본 프로필로 시작해 곧바로 저장하는 바람에, 와이파이가 잠깐 끊기면 서버 기록이 0으로 덮어써졌다.
 - **db에서 읽은 문서는 깊은 복사 후 수정한다.** 아티팩트 db의 `data()`는 동결(frozen) 객체라 그대로 고치면 strict 모드에서 오류가 난다.
 - **db에서 읽은 값은 학생이 쓸 수 있는 데이터다.** HTML에 넣을 때는 항상 `esc()`, 숫자는 `+x||0`, 아바타는 `avatarOf()` 화이트리스트를 거친다.
+  - 내 프로필의 숫자 필드(`totalXP`·`streakDays`·`totalCompleted`·`tutorialLevel`·`boardSizePref`)는 `loadProfile()`에서 숫자로 강제하고 `level`은 XP로 다시 계산한다. 아티팩트 db는 형식 검사가 없어 문자열이 들어올 수 있다.
 - **프로필·세션·classConfig에 필드를 추가하면 `firestore.rules`도 같이 고친다.** 규칙의 `keys().hasOnly([...])` 때문에 저장이 거부된다. 규칙 테스트에도 항목을 추가한다.
 
 ## 교사 인증

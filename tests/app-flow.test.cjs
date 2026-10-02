@@ -138,8 +138,10 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   // 사용자 전환 뒤에는 교사도 다시 로그인해야 한다(공용 PC)
   click('#nav-teacher'); await wait(50);
   ok($('#teacher-login-form'),'teacher must log in again after user switch');
+  ok($('[data-action=resume-game]'),'teacher login screen offers back-to-game while a puzzle is paused');
   $('#t-class').value='3-2'; $('#t-pass').value='old'; submit('teacher-login-form'); await wait(150);
   ok($('#a-level').value==='diff' && checkedDiffs()==='medium,hard','dashboard shows saved multi-difficulty assignment');
+  ok($('#dash-body') && $('[data-action=resume-game]'),'dashboard offers back-to-game');
   setDiffs([]); click('[data-action=assign-save]'); await wait(80);
   ok(store[cfgKey].assignedDifficulties.join()==='medium,hard' && $('#toast').textContent.includes('하나 이상'),'empty difficulty selection rejected');
   setDiffs(['medium']); click('[data-action=assign-save]'); await wait(80);
@@ -175,7 +177,15 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
   ok($('.play-head .stage-tag').textContent.includes('LV.1') && $$('#board .cell').length===16,'assigned practice Lv.1 4x4');
   const xp0=store['profiles/'+myId].totalXP;
-  { const g0=readBoard(); for(let r=0;r<4;r++)for(let c=0;c<4;c++) if(!g0[r][c]){ click(`#board .cell[data-r="${r}"][data-c="${c}"]`); click('#btn-hint'); } }
+  { const g0=readBoard(); let first=true;
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++) if(!g0[r][c]){
+      const sel=`#board .cell[data-r="${r}"][data-c="${c}"]`;
+      click(sel); click('#btn-hint');
+      if(first){ first=false; const v=$(sel).textContent;
+        click('[data-action=erase]'); const afterErase=$(sel).textContent;
+        click(`#pad button[data-val="${(+v)%4+1}"]`);
+        ok(v && afterErase===v && $(sel).textContent===v && $(sel).classList.contains('hinted') && $('#stat-mistakes').textContent==='0','hinted cell cannot be erased or overwritten'); }
+    } }
   await wait(100);
   ok($('.result-card') && $('.xp-burst').textContent.trim()==='+0 XP' && store['profiles/'+myId].totalXP===xp0,'hint-only practice earns no XP: '+($('.xp-burst')||{}).textContent);
   store[cfgKey].isAssigned=false;
@@ -199,6 +209,11 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   failGet.delete('profiles/'+myId);
   submit('entry-form'); await wait(400);
   ok($('#board') || $('.result-card') || $('[data-action=rules-next]'),'retry after recovery enters the game');
+  store['profiles/'+b64('3-2__공격')]={studentName:'공격',classroom:'3-2',totalXP:'<img src=x onerror=alert(1)>',level:'<img src=x onerror=alert(2)>',streakDays:'<b>9</b>',totalCompleted:'<i>1</i>',tutorialLevel:'2',boardSizePref:'4<x>',avatar:'🐸'};
+  click('#btn-switch'); await wait(30); click('[data-action=go-student]');
+  $('#in-name').value='공격'; $('#in-class').value='3-2'; submit('entry-form'); await wait(400);
+  ok(!$('#topbar img') && /Lv\.1 /.test($('#topbar-info').textContent),'non-numeric profile fields are not rendered as HTML: '+$('#topbar-info').textContent);
+  ok($$('#board .cell').length===16 || $('.choice-grid'),'tampered profile still playable (tutorialLevel "2" → 2)');
   ok(!errs.length,'no runtime errors '+errs.join('; '));
   console.log(fails?`${fails} FAILED`:'ALL PASSED');
   process.exit(fails?1:0);
