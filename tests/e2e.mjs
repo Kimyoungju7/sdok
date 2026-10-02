@@ -108,8 +108,23 @@ await a.waitForSelector('#board .cell', { timeout: 20000 });
 await sleep(300);
 ok((await a.$$('#board .cell')).length === 36 && (await a.$$('.mode-tab:disabled')).length === 4, '학생 재입장 시 교사 지정(연습 Lv.2 6×6, 난이도 탭 잠금) 적용');
 
-// 6) 교사가 난이도 '어려움'만 지정 → 학생은 9×9 어려움 탭만
-await t.$eval('#a-level', el => { el.value = 'hard'; el.dispatchEvent(new Event('change', { bubbles: true })); });
+// 6) 접속해 있는 학생 A에게, 교사가 '보통+어려움'을 열면 다시 들어오지 않아도 30초 안에 반영
+const setDiffs = (p, list) => p.evaluate(list => {
+  const sel = document.getElementById('a-level'); sel.value = 'diff'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+  document.querySelectorAll('#a-diffs input').forEach(cb => { cb.checked = list.includes(cb.value); });
+}, list);
+await setDiffs(t, ['medium', 'hard']);
+await t.$eval('#toast', el => { el.hidden = true; el.textContent = ''; });
+await click(t, '[data-action=assign-save]');
+await t.waitForFunction(() => document.getElementById('toast').textContent.includes('저장했어요'), { timeout: 10000 }).catch(() => {});
+const live = await a.waitForFunction(() => {
+  const act = document.querySelector('.mode-tab.active');
+  return act && act.dataset.mode === 'medium' && document.querySelectorAll('.mode-tab:disabled').length === 3;
+}, { timeout: 45000 }).then(() => true, () => false);
+ok(live && (await a.$$('#board .cell')).length === 36, '접속 중인 학생에게 지정 변경(보통+어려움) 자동 반영');
+
+// 7) 교사가 난이도 '어려움'만 지정 → 학생은 9×9 어려움 탭만
+await setDiffs(t, ['hard']);
 await t.$eval('#toast', el => { el.hidden = true; el.textContent = ''; });
 await click(t, '[data-action=assign-save]');
 await t.waitForFunction(() => document.getElementById('toast').textContent.includes('저장했어요'), { timeout: 10000 }).catch(() => {});

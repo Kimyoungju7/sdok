@@ -29,9 +29,9 @@
 - `firebase.json`, `firestore.rules`, `firestore.indexes.json`, `firebase-config.json`: Firebase 설정.
   - `firebase-config.json`의 웹 앱 설정은 공개돼도 되는 값이다. 접근 제어는 보안 규칙이 한다.
 - `tests/`
-  - `app-flow.test.cjs`: jsdom 앱 흐름 68항목
-  - `firestore-rules.test.mjs`: 규칙 25항목
-  - `e2e.mjs`: 에뮬레이터 + Chrome 16항목
+  - `app-flow.test.cjs`: jsdom 앱 흐름 81항목
+  - `firestore-rules.test.mjs`: 규칙 29항목
+  - `e2e.mjs`: 에뮬레이터 + Chrome 17항목
 - `FIREBASE.md`: 처음부터 배포하는 절차(콘솔 설정, 로그인, 배포).
 - `public/`, `.firebase/`, `node_modules/`는 빌드·캐시 결과물이라 커밋하지 않는다.
 
@@ -70,10 +70,16 @@ npm run deploy         # 운영 배포
 - 기본 탭은 `profile.lastMode`다.
 
 **교사 일괄 지정:** `classConfig.isAssigned`가 켜져 있으면 `modeLocked()`가 탭을 잠근다.
-- 대시보드의 단계 선택은 `p0`~`p3`(연습) 또는 `easy`~`expert`(난이도) 중 하나다. 저장 형식은 `assignedLevel`(0~3, 난이도면 4) + `assignedDifficulty`(난이도 또는 null).
-- 연습 Lv.1~3을 지정하면 난이도 탭이 잠기고, 지정된 크기·단계로 바로 시작한다. 난이도를 지정하면 그 탭 하나만 열리고, 판 크기는 난이도가 정한다(보드 크기 상자 비활성).
-- `assignedLevel` 4에 `assignedDifficulty`가 없는 v0.2 설정은 예전처럼 연습 탭만 잠그고 난이도는 자유 선택으로 둔다.
+- 대시보드의 단계 선택은 `p0`~`p3`(연습) 또는 `diff`(난이도)이고, `diff`면 열어 줄 난이도를 체크박스(`#a-diffs`)로 1~4개 고른다.
+- 저장 형식은 `assignedLevel`(0~3, 난이도면 4) + `assignedDifficulties`(난이도 목록 또는 null). `assignedDifficulty`는 null로 쓴다.
+- `parseAssigned()`가 학생 쪽 상태 `{size, level, difficulties}`로 바꾼다. 예전 형식도 읽는다.
+  - v0.3 `assignedDifficulty` 하나 → `[그 난이도]`
+  - v0.2 `assignedLevel` 4에 난이도 없음 → 4개 모두 열림(연습 탭만 잠김)
+- 연습 Lv.1~3을 지정하면 난이도 탭이 잠기고, 지정된 크기·단계로 바로 시작한다. 난이도를 지정하면 체크한 탭만 열리고, 마지막으로 한 난이도(없으면 열린 것 중 첫 번째)로 시작한다.
 - 지정 모드에서는 완료 후 다음 단계로 넘어가지 않고 "다시 도전"만 준다.
+- **접속 중인 학생에게도 반영된다.** `syncAssignment()`가 학급 설정을 다시 읽는다: 30초 폴링(`startAssignPoll`), 탭 전환, 다시 도전/다음 단계, 이어서 하기.
+  - 바뀌면 `onAssignmentChanged()`: 아직 손대지 않은(`moves===0`) 퍼즐이 잠긴 탭이면 지정된 곳으로 옮기고, 풀던 퍼즐은 끝까지 풀게 둔다.
+- 교사 로그인(`App.teacher`)은 홈·사용자 전환·로그아웃 버튼 때 `teacherLogout()`으로 지운다. 교실 공용 PC에서 다음 사람이 비밀번호 없이 대시보드에 들어가지 않게 하기 위해서다.
 
 **난이도별 랭킹:**
 - 프로필 `bests[난이도] = {score, sec, mistakes, hints, size, at}`에 학생별 최고 기록 하나만 둔다.
@@ -84,6 +90,8 @@ npm run deploy         # 운영 배포
 - 힌트는 두 가지로 센다.
   - `hintsUsed`: 힌트 제한과 XP 감점용. 무제한 단계에서는 세지 않는다.
   - `hintsTaken`: 실제 사용 수. 별점, 보정 기록, 세션 기록에 쓴다.
+  - 힌트 무제한 단계(연습 Lv.1·2)의 XP는 `hintsTaken`/빈칸 수 비율만큼 깎는다. 힌트만으로 채우면 0 XP다(교사가 지정한 Lv.1·2를 반복해 XP를 쌓는 것 방지).
+- CSV 내보내기는 `=`, `+`, `-`, `@`로 시작하는 값 앞에 `'`를 붙인다(엑셀 수식 주입 방지).
 
 **스도쿠 엔진 (파일 상단):** 4×4·6×6·9×9 백트래킹 생성기와 유일해 검증기(비트마스크 + MRV)다.
 - 노드 예산(`nodeBudget`)을 넘기면 그 칸은 비우지 않는다.
@@ -120,6 +128,7 @@ npm run deploy         # 운영 배포
 - **첫 화면은 db를 기다리지 않고 그린다**(`renderHome(); capsReady();`). 캡서빌리티 협상은 최대 10초 걸리고, 기다리게 했더니 "앱이 안 열린다"는 버그가 났었다.
 - **db를 쓰는 동작(학생 입장, 교사 로그인)은 `await capsReady()`로 연결을 기다린다.** 안 기다리면 기본 프로필로 시작했다가, 나중에 db가 붙은 뒤 서버 기록을 빈 프로필로 덮어쓴다.
   - 타임아웃은 15초이고, 늦게 도착한 db는 쓰지 않는다.
+- **db가 있는데 프로필 읽기가 실패하면 입장시키지 않는다.** `loadProfile()`은 오류를 던지고, `doEntry()`는 입장 화면에 오류를 띄운다. 예전에는 오류를 삼키고 기본 프로필로 시작해 곧바로 저장하는 바람에, 와이파이가 잠깐 끊기면 서버 기록이 0으로 덮어써졌다.
 - **db에서 읽은 문서는 깊은 복사 후 수정한다.** 아티팩트 db의 `data()`는 동결(frozen) 객체라 그대로 고치면 strict 모드에서 오류가 난다.
 - **db에서 읽은 값은 학생이 쓸 수 있는 데이터다.** HTML에 넣을 때는 항상 `esc()`, 숫자는 `+x||0`, 아바타는 `avatarOf()` 화이트리스트를 거친다.
 - **프로필·세션·classConfig에 필드를 추가하면 `firestore.rules`도 같이 고친다.** 규칙의 `keys().hasOnly([...])` 때문에 저장이 거부된다. 규칙 테스트에도 항목을 추가한다.

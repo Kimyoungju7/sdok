@@ -369,6 +369,18 @@
   .teacher-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:10px; }
   .assign-form{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
   .assign-form .field{ margin-bottom:0; min-width:130px; }
+  .assign-diffs{ margin-top:14px; }
+  .assign-diffs .label{ display:block; font-size:13px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; }
+  .diff-checks{ display:flex; gap:8px; flex-wrap:wrap; }
+  .dcheck{
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
+    border:2px solid var(--line-strong); background:var(--paper-raised); color:var(--ink-soft);
+    border-radius:999px; padding:7px 14px; font-size:14px; font-weight:700;
+  }
+  .dcheck input{ width:16px; height:16px; margin:0; accent-color:var(--mc); }
+  .dcheck small{ font-weight:600; opacity:.75; }
+  .dcheck:has(input:checked){ border-color:var(--mc); background:var(--mc-soft); color:var(--ink); }
+  .dcheck:has(input:disabled){ opacity:.45; cursor:not-allowed; }
 
   /* ---------- overlays ---------- */
   .toast{
@@ -577,7 +589,7 @@ const App = {
   name:'', classroom:'', profileId:null, profile:null,
   assigned:null, session:null,
   teacher:{classroom:null,id:null,data:null,rankTab:'overall'},
-  rankVis:'all', classRows:null, classRowsAt:0, rankTab:'overall',
+  rankVis:'all', classRows:null, classRowsAt:0, rankTab:'overall', assignPoll:null,
   pendingAvatar:null, sound: lsGet('sound_on')===true
 };
 
@@ -660,11 +672,10 @@ async function loadProfile(name,classroom){
   const id = safeId(key);
   let profile = lsGet('sp_'+id);
   if(App.db){
-    try{
-      const snap = await App.db.doc('profiles/'+id).get();
-      // snap.data()는 동결(frozen) 객체라 그대로 수정하면 strict 모드에서 오류 — 깊은 복사
-      if(snap.exists) profile = JSON.parse(JSON.stringify(snap.data()));
-    }catch(e){}
+    // 읽기 실패는 삼키지 않고 던진다. 기본 프로필로 진행하면 곧바로 저장되면서 서버 기록을 빈 값으로 덮어쓴다.
+    const snap = await App.db.doc('profiles/'+id).get();
+    // snap.data()는 동결(frozen) 객체라 그대로 수정하면 strict 모드에서 오류 — 깊은 복사
+    if(snap.exists) profile = JSON.parse(JSON.stringify(snap.data()));
   }
   // 예전 버전에서 저장된 문서에 빠진 필드가 있어도 동작하도록 기본값과 병합
   profile = Object.assign(defaultProfile(name,classroom), profile||{});
@@ -693,7 +704,50 @@ async function getClassConfig(classroom){
   try{
     const snap = await App.db.doc('classConfig/'+id).get();
     return {id, data: snap.exists?snap.data():null};
-  }catch(e){ return {id,data:null}; }
+  }catch(e){ return {id,data:null,error:true}; }
+}
+// 학급 설정 → 학생 쪽 지정 상태. {size, level, difficulties} 또는 null(자율)
+// - 연습 지정: level 0~3, difficulties null
+// - 난이도 지정: level 4, difficulties = 열어 줄 난이도 목록(1~4개)
+//   예전 형식도 읽는다: assignedDifficulty 하나(v0.3) → [그 난이도], 난이도 없이 Lv.4(v0.2) → 4개 모두
+function parseAssigned(d){
+  if(!d || !d.isAssigned) return null;
+  const size = [4,6,9].includes(+d.assignedBoardSize) ? +d.assignedBoardSize : 9;
+  const level = +d.assignedLevel||0;
+  if(level<4) return {size, level:Math.max(0,level), difficulties:null};
+  let diffs = Array.isArray(d.assignedDifficulties) ? DIFF_ORDER.filter(x=>d.assignedDifficulties.includes(x))
+    : DIFF_ORDER.includes(d.assignedDifficulty) ? [d.assignedDifficulty] : [];
+  if(!diffs.length) diffs = DIFF_ORDER.slice();
+  return {size, level:4, difficulties:diffs};
+}
+// 교사가 수업 중에 지정을 바꿔도 반영되도록 학급 설정을 다시 읽는다. 지정 상태가 바뀌었으면 true.
+async function syncAssignment(){
+  if(!App.db || !App.classroom) return false;
+  const classroom = App.classroom;
+  const cc = await getClassConfig(classroom);
+  if(cc.error || App.classroom!==classroom) return false;
+  if(cc.data) App.rankVis = cc.data.rankingVisibility || 'all';
+  const next = parseAssigned(cc.data);
+  const changed = JSON.stringify(next)!==JSON.stringify(App.assigned);
+  App.assigned = next;
+  return changed;
+}
+const ASSIGN_POLL_MS = 30000;
+function startAssignPoll(){
+  clearInterval(App.assignPoll);
+  App.assignPoll = setInterval(()=>{
+    if(!App.name) return;
+    syncAssignment().then(changed=>{ if(changed) onAssignmentChanged(); }).catch(()=>{});
+  }, ASSIGN_POLL_MS);
+}
+// 게임 화면이면 탭 잠금을 바로 고친다. 아직 한 칸도 안 푼 퍼즐이 잠긴 탭이면 지정된 곳으로 옮기고,
+// 풀던 퍼즐은 끝까지 풀게 둔다(다음 판부터 지정이 적용된다).
+function onAssignmentChanged(){
+  toast(App.assigned ? `📌 선생님이 단계를 지정했어요: ${assignedLabel()}` : '선생님이 단계 지정을 풀었어요. 원하는 탭을 골라요!');
+  const s=App.session;
+  if(App.screen!=='play' || !s || s.done) return;
+  if(modeLocked(s.mode) && s.moves===0){ routeAfterEntry(); return; }
+  renderPlay();
 }
 // 학급 프로필 목록(랭킹용). 20초 캐시, 내 최신 프로필은 서버 반영 전이라도 항상 덮어써서 보여준다.
 async function fetchClassRows(force){
@@ -862,9 +916,12 @@ async function navigate(target){
       if(!ok) return;
     }
     endSession();
+    // 교실 공용 PC에서 다음 사람이 비밀번호 없이 대시보드에 들어가지 않도록, 홈·사용자 전환 때 교사 로그인도 끝낸다
+    teacherLogout();
     if(target==='switch'){
       App.name=''; App.classroom=''; App.profile=null; App.profileId=null; App.assigned=null;
       App.classRows=null; App.classRowsAt=0;
+      clearInterval(App.assignPoll); App.assignPoll=null;
     }
     renderHome();
     return;
@@ -920,10 +977,10 @@ function renderHome(){
 }
 
 /* ========================= Screens: Student entry ========================= */
-function renderStudentEntry(){
+function renderStudentEntry(prefill, errMsg){
   App.screen='student-entry';
   renderTopbar();
-  const last = lsGet('last_login') || {};
+  const last = prefill || lsGet('last_login') || {};
   App.pendingAvatar = AVATARS.includes(last.avatar) ? last.avatar : AVATARS[Math.floor(Math.random()*AVATARS.length)];
   view.innerHTML = `
     <div class="center-wrap">
@@ -945,7 +1002,7 @@ function renderStudentEntry(){
             ${AVATARS.map(a=>`<button type="button" class="av-btn ${a===App.pendingAvatar?'sel':''}" data-action="pick-avatar" data-av="${a}" aria-pressed="${a===App.pendingAvatar}">${a}</button>`).join('')}
           </div>
         </div>
-        <div id="entry-err" class="err-text" hidden></div>
+        <div id="entry-err" class="err-text" ${errMsg?'':'hidden'}>${errMsg?esc(errMsg):''}</div>
         <button class="btn btn-primary btn-block" type="submit">시작하기 →</button>
       </form>
     </div>`;
@@ -967,21 +1024,28 @@ function handleEntrySubmit(form){
 }
 async function doEntry(name,classroom,avatar){
   showLoading('내 기록을 불러오는 중…');
+  let loaded;
   try{
     await capsReady();
+    loaded = await loadProfile(name,classroom);
+  }catch(e){
+    // 서버 기록을 못 읽었으면 입장하지 않는다(빈 프로필로 시작하면 저장 때 기록이 지워진다)
+    hideLoading();
+    renderStudentEntry({name,classroom,avatar}, '내 기록을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+    return;
+  }
+  try{
     App.name=name; App.classroom=classroom; App.classRows=null; App.classRowsAt=0;
-    const {id,profile} = await loadProfile(name,classroom);
+    const {id,profile} = loaded;
     App.profileId=id; App.profile=profile;
     if(AVATARS.includes(avatar) && profile.avatar!==avatar){ profile.avatar=avatar; saveProfile(id,profile); }
     else if(!AVATARS.includes(profile.avatar)){ profile.avatar=AVATARS[Math.floor(Math.random()*AVATARS.length)]; saveProfile(id,profile); }
     lsSet('last_login',{name,classroom,avatar:profile.avatar});
     const cc = await getClassConfig(classroom);
-    App.assigned = (cc.data && cc.data.isAssigned) ? {
-      size:+cc.data.assignedBoardSize||9, level:+cc.data.assignedLevel||0,
-      difficulty: DIFF_ORDER.includes(cc.data.assignedDifficulty) ? cc.data.assignedDifficulty : null
-    } : null;
+    App.assigned = parseAssigned(cc.data);
     App.rankVis = (cc.data && cc.data.rankingVisibility) || 'all';
   }finally{ hideLoading(); }
+  startAssignPoll();
   routeAfterEntry();
 }
 
@@ -991,29 +1055,33 @@ function defaultMode(){
   if(MODE_ORDER.includes(p.lastMode)) return p.lastMode;
   return p.tutorialLevel<4 ? 'practice' : 'easy';
 }
-// 교사 일괄 지정: 연습 Lv.0~3이면 연습 탭만, 난이도(쉬움~전문가) 하나를 지정하면 그 탭만 쓸 수 있다.
-// (assignedLevel 4에 assignedDifficulty가 없는 v0.2 학급 설정은 예전처럼 4개 난이도 자유 선택으로 둔다)
+// 교사 일괄 지정: 연습 Lv.0~3이면 연습 탭만, 난이도를 지정하면 고른 난이도 탭(1~4개)만 쓸 수 있다.
 function modeLocked(mode){
   const a=App.assigned;
   if(!a) return false;
-  if(a.difficulty) return mode!==a.difficulty;
-  if(a.level>=4) return mode==='practice';
+  if(a.difficulties) return !a.difficulties.includes(mode);
   return mode!=='practice';
 }
 function assignedLabel(){
   const a=App.assigned;
   if(!a) return '';
-  if(a.difficulty) return `${MODE_META[a.difficulty].emoji} ${MODE_META[a.difficulty].label}`;
-  if(a.level>=4) return '난이도 도전';
+  if(a.difficulties){
+    if(a.difficulties.length===DIFF_ORDER.length) return '난이도 도전 · 전체';
+    return a.difficulties.map(d=>`${MODE_META[d].emoji} ${MODE_META[d].label}`).join(' · ');
+  }
   return `연습 Lv.${Math.max(a.level,1)}`;
+}
+// 난이도 지정일 때 시작할 탭: 마지막으로 한 난이도가 열려 있으면 그것, 아니면 열린 것 중 첫 번째
+function assignedStartMode(){
+  const d=App.assigned.difficulties;
+  return d.includes(App.profile.lastMode) ? App.profile.lastMode : d[0];
 }
 function routeAfterEntry(){
   renderTopbar();
   const p=App.profile;
   if(App.assigned){
     const a=App.assigned;
-    if(a.difficulty){ if(p.tutorialLevel===0){ renderRules(); return; } startMode(a.difficulty); return; }
-    if(a.level>=4){ startMode(DIFF_ORDER.includes(p.lastMode)?p.lastMode:'easy'); return; }
+    if(a.difficulties){ if(p.tutorialLevel===0){ renderRules(); return; } startMode(assignedStartMode()); return; }
     // 규칙 화면은 교사가 Lv.0을 지정했거나, 학생이 아직 한 번도 보지 않았을 때만
     if(a.level===0 || p.tutorialLevel===0){ renderRules(); return; }
     startPractice(a.level, a.size);
@@ -1062,8 +1130,7 @@ function afterRules(){
   App.profile.tutorialLevel = Math.max(App.profile.tutorialLevel,1);
   saveProfile(App.profileId, App.profile);
   if(App.assigned){
-    if(App.assigned.difficulty) startMode(App.assigned.difficulty);
-    else if(App.assigned.level>=4) startMode('easy');
+    if(App.assigned.difficulties) startMode(assignedStartMode());
     else startPractice(Math.max(App.assigned.level,1), App.assigned.size);
     return;
   }
@@ -1106,7 +1173,7 @@ function pickSize(n){
 /* ========================= Puzzle session ========================= */
 function startMode(mode){
   if(mode==='practice'){
-    if(App.assigned && !App.assigned.difficulty && App.assigned.level<4){ startPractice(Math.max(App.assigned.level,1), App.assigned.size); return; }
+    if(App.assigned && !App.assigned.difficulties){ startPractice(Math.max(App.assigned.level,1), App.assigned.size); return; }
     if(!App.profile.boardSizePref){ endSession(); renderSizeSelect(); return; }
     startPractice(practiceLevel(), App.profile.boardSizePref);
     return;
@@ -1426,8 +1493,14 @@ function toggleSound(){
 }
 async function switchMode(mode){
   if(!MODE_ORDER.includes(mode) || !App.profile) return;
-  if(modeLocked(mode)){ toast('선생님이 지정한 단계만 할 수 있어요.'); return; }
+  // 교사가 방금 지정을 바꿨을 수 있으니 탭을 열기 전에 학급 설정을 다시 확인한다
+  const changed = await syncAssignment();
   const s=App.session;
+  if(modeLocked(mode)){
+    toast('선생님이 지정한 단계만 할 수 있어요.');
+    if(changed && App.screen==='play' && s && !s.done) renderPlay();
+    return;
+  }
   if(s && !s.done && s.mode===mode && App.screen==='play') return;
   if(s && !s.done && s.moves>0){
     const ok = await confirmModal(`${MODE_META[mode].emoji} ${MODE_META[mode].label}(으)로 바꿀까요?<br><span class="hint">지금 풀던 퍼즐은 저장되지 않아요.</span>`,'바꾸기');
@@ -1506,7 +1579,9 @@ function completeSession(){
   s.elapsed=Math.max(1,Math.floor((Date.now()-s.startedAt)/1000));
   const p=App.profile;
   const base = s.kind==='tutorial' ? (TUTORIAL_XP[s.level]||20) : DIFF_XP[s.difficulty];
-  const xp = applyPenalty(base, s.mistakes, s.hintsUsed);
+  let xp = applyPenalty(base, s.mistakes, s.hintsUsed);
+  // 힌트 무제한 단계(연습 Lv.1·2)는 힌트로 채운 칸 비율만큼 XP를 줄인다 — 힌트만 눌러 XP를 쌓지 못하게
+  if(s.hintsMax===Infinity && s.toFill) xp = Math.round(xp * (s.toFill - Math.min(s.hintsTaken, s.toFill)) / s.toFill);
   const stars = starsFor(s.mistakes, s.hintsTaken);
   const today = new Date().toDateString();
   let streakBonus=0;
@@ -1608,15 +1683,32 @@ function renderResult({xp,streakBonus,badge,isNewBadge,graduated,stars,record,ne
     }).catch(()=>{});
   }
 }
-function resultNext(){
+async function resultNext(){
   const s=App.session;
-  if(s && s.kind==='tutorial' && s.level<3) startPractice(s.level+1, s.size);
+  if(!s || s.kind!=='tutorial' || s.level>=3) return;
+  await syncAssignment();
+  if(App.assigned){ routeAfterEntry(); return; }   // 그사이 교사가 지정을 켰으면 지정된 단계로
+  startPractice(s.level+1, s.size);
 }
-function resultRetry(){
+async function resultRetry(){
   const s=App.session;
   if(!s) return;
-  if(s.kind==='tutorial') startPractice(App.assigned ? s.level : practiceLevel(), s.size);
+  await syncAssignment();
+  if(modeLocked(s.mode)){ routeAfterEntry(); return; }
+  const a=App.assigned;
+  if(s.kind==='tutorial'){
+    if(a && !a.difficulties) startPractice(Math.max(a.level,1), a.size);
+    else startPractice(practiceLevel(), s.size);
+  }
   else startFreePuzzle(s.difficulty);
+}
+// 홈의 "이어서 하기", 랭킹의 "게임으로 돌아가기"
+async function playNow(){
+  await syncAssignment();
+  const s=App.session;
+  // 아직 손대지 않은 퍼즐이 잠긴 탭이면 버리고 지정된 단계로 간다
+  if(s && !s.done && s.moves===0 && modeLocked(s.mode)) endSession();
+  if(!resumeSession()) routeAfterEntry();
 }
 
 /* ========================= Ranking (student view) ========================= */
@@ -1730,7 +1822,7 @@ async function firebaseTeacherLogin(classroom, pass){
   if(!snap.exists){
     await App.db.batchSet([
       ['classSecrets/'+id, {passHash: await sha256Hex(secret)}],
-      ['classConfig/'+id, {classroom, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:'easy', rankingVisibility:'all', createdAt:new Date().toISOString()}],
+      ['classConfig/'+id, {classroom, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:null, assignedDifficulties:[...DIFF_ORDER], rankingVisibility:'all', createdAt:new Date().toISOString()}],
       unlock
     ]);
     return 'created';
@@ -1773,7 +1865,7 @@ async function handleTeacherLogin(form){
     const hash = await hashPass(classroom, pass);
     const cur = snap.exists ? snap.data() : null;
     if(!cur || (!cur.passHash && !cur.passcode)){
-      await ref.set({ classroom, passHash:hash, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:'easy', rankingVisibility:'all', createdAt:new Date().toISOString() });
+      await ref.set({ classroom, passHash:hash, isAssigned:false, assignedBoardSize:9, assignedLevel:4, assignedDifficulty:null, assignedDifficulties:[...DIFF_ORDER], rankingVisibility:'all', createdAt:new Date().toISOString() });
       toast('새 학급 비밀번호가 설정됐어요.');
     } else if(cur.passHash ? cur.passHash!==hash : cur.passcode!==pass){
       hideLoading();
@@ -1791,6 +1883,10 @@ async function handleTeacherLogin(form){
   }
 }
 
+function teacherLogout(){
+  App.teacher = {classroom:null,id:null,data:null,rankTab:'overall'};
+}
+
 /* ========================= Teacher: dashboard ========================= */
 async function renderTeacherDashboard(){
   App.screen='teacher';
@@ -1802,6 +1898,7 @@ async function renderTeacherDashboard(){
       <div class="btn-row" style="margin:4px 0 16px;">
         <button class="btn btn-outline" data-action="refresh-dashboard">🔄 새로고침</button>
         <button class="btn btn-outline" data-action="export-csv">⬇ CSV 내보내기</button>
+        <button class="btn btn-outline" data-action="teacher-logout">🚪 로그아웃 · 다른 학급</button>
       </div>
       <div id="dash-body"><p class="lede">불러오는 중…</p></div>
     </div>`;
@@ -1817,7 +1914,7 @@ async function loadDashboardData(){
       App.db.collection('profiles').where('classroom','==',classroom).get(),
       App.db.collection('sessions').where('classroom','==',classroom).get()
     ]);
-    const cc = ccSnap.exists ? ccSnap.data() : {isAssigned:false,assignedBoardSize:9,assignedLevel:4,assignedDifficulty:'easy',rankingVisibility:'all'};
+    const cc = ccSnap.exists ? ccSnap.data() : {isAssigned:false,assignedBoardSize:9,assignedLevel:4,assignedDifficulty:null,assignedDifficulties:[...DIFF_ORDER],rankingVisibility:'all'};
     const profiles = profQ.docs.map(d=>JSON.parse(JSON.stringify(d.data())));
     const sessions = sessQ.docs.map(d=>d.data()).sort((a,b)=> new Date(b.finishedAt)-new Date(a.finishedAt));
     App.teacher.data = {cc,profiles,sessions};
@@ -1833,9 +1930,10 @@ function teacherRankBody(){
   return rankTableHTML(sorted,tab,{highlightMe:false});
 }
 function buildDashboardHTML(cc,profiles,sessions){
-  // 저장된 지정 값 → 선택 상자 값 ('p0'~'p3' 연습 / 'easy'~'expert' 난이도). v0.2의 '난이도 자유'(4)는 쉬움으로 표시
-  const assignSel = DIFF_ORDER.includes(cc.assignedDifficulty) ? cc.assignedDifficulty
-    : (+cc.assignedLevel>=0 && +cc.assignedLevel<=3 ? 'p'+(+cc.assignedLevel) : 'easy');
+  // 저장된 지정 값 → 선택 상자 값 ('p0'~'p3' 연습 / 'diff' 난이도) + 체크할 난이도 목록
+  const parsed = parseAssigned(Object.assign({}, cc, {isAssigned:true}));
+  const assignSel = parsed.difficulties ? 'diff' : 'p'+Math.min(3,parsed.level);
+  const diffOn = parsed.difficulties || DIFF_ORDER;
   const totalStudents=profiles.length;
   const totalCompleted=sessions.length;
   const avgMistakes = sessions.length ? (sessions.reduce((a,s)=>a+(+s.mistakeCount||0),0)/sessions.length).toFixed(1) : '-';
@@ -1862,17 +1960,21 @@ function buildDashboardHTML(cc,profiles,sessions){
             <optgroup label="✏️ 연습 (학습 사다리)">
               ${[0,1,2,3].map(l=>`<option value="p${l}" ${assignSel===('p'+l)?'selected':''}>연습 Lv.${l} · ${TUTORIAL_LABEL[l]}</option>`).join('')}
             </optgroup>
-            <optgroup label="🏆 난이도 도전">
-              ${DIFF_ORDER.map(d=>`<option value="${d}" ${assignSel===d?'selected':''}>${MODE_META[d].emoji} ${MODE_META[d].label} · ${DIFF_SIZE[d]}×${DIFF_SIZE[d]}</option>`).join('')}
-            </optgroup>
+            <option value="diff" ${assignSel==='diff'?'selected':''}>🏆 난이도 도전 (아래에서 고르기)</option>
           </select>
         </div>
         <div class="field"><label for="a-size">연습 보드 크기</label>
           <select id="a-size" ${assignSel.startsWith('p')?'':'disabled'}>${[4,6,9].map(n=>`<option value="${n}" ${+cc.assignedBoardSize===n?'selected':''}>${n}×${n}</option>`).join('')}</select>
         </div>
-        <button class="btn btn-warm" data-action="assign-save">저장</button>
       </div>
-      <p class="hint" style="margin-top:10px;">켜져 있으면 학생의 게임 화면에서 지정한 탭 외에는 모두 잠겨요. 연습 단계는 보드 크기를 고를 수 있고, 난이도(쉬움 4×4 · 보통 6×6 · 어려움 9×9 · 전문가 9×9)는 판 크기가 정해져 있어요.</p>
+      <div class="assign-diffs">
+        <span class="label" id="a-diffs-label">열어 줄 난이도 (여러 개 선택 가능)</span>
+        <div class="diff-checks" id="a-diffs" role="group" aria-labelledby="a-diffs-label">
+          ${DIFF_ORDER.map(d=>`<label class="dcheck m-${d}"><input type="checkbox" value="${d}" ${diffOn.includes(d)?'checked':''} ${assignSel==='diff'?'':'disabled'}>${MODE_META[d].emoji} ${MODE_META[d].label} <small>${DIFF_SIZE[d]}×${DIFF_SIZE[d]}</small></label>`).join('')}
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;"><button class="btn btn-warm" data-action="assign-save">저장</button></div>
+      <p class="hint" style="margin-top:10px;">켜져 있으면 학생의 게임 화면에서 지정한 탭 외에는 모두 잠겨요. 연습 단계는 보드 크기를 고를 수 있고, 난이도는 체크한 탭만 열려요(판 크기는 난이도마다 정해져 있어요). 이미 접속한 학생에게도 30초 안에 적용돼요.</p>
     </div>
 
     <h2 class="section-title">학급 랭킹 보드</h2>
@@ -1924,11 +2026,14 @@ async function saveAssignment(){
   const size = +document.getElementById('a-size').value;
   const v = document.getElementById('a-level').value;
   const isPractice = /^p[0-3]$/.test(v);
-  if(!isPractice && !DIFF_ORDER.includes(v)) return;
+  if(!isPractice && v!=='diff') return;
+  const diffs = isPractice ? null : DIFF_ORDER.filter(d=>{ const cb=document.querySelector(`#a-diffs input[value="${d}"]`); return cb && cb.checked; });
+  if(diffs && !diffs.length){ toast('열어 줄 난이도를 하나 이상 골라 주세요.'); return; }
   const level = isPractice ? +v.slice(1) : 4;
-  const difficulty = isPractice ? null : v;
   try{
-    await App.db.doc('classConfig/'+App.teacher.id).update({isAssigned:on, assignedBoardSize:size, assignedLevel:level, assignedDifficulty:difficulty, assignedAt:new Date().toISOString()});
+    // assignedDifficulty(난이도 하나, v0.3 형식)는 비우고 목록(assignedDifficulties)만 쓴다
+    await App.db.doc('classConfig/'+App.teacher.id).update({isAssigned:on, assignedBoardSize:size, assignedLevel:level,
+      assignedDifficulty:null, assignedDifficulties:diffs, assignedAt:new Date().toISOString()});
     toast('학습 단계 지정을 저장했어요.');
     loadDashboardData();
   }catch(e){ toast('저장에 실패했어요.'); }
@@ -1945,9 +2050,11 @@ async function exportCSV(){
   if(!sessions.length){ toast('내보낼 기록이 없어요.'); return; }
   const headers=['이름','학급','구분','레벨/난이도','보드크기','소요초','실수','힌트','별점','보정기록초','완료여부','XP','완료시각'];
   const lines=[headers.join(',')];
+  // 학생이 입력한 값이 =, +, -, @로 시작하면 엑셀이 수식으로 실행하므로 앞에 '를 붙여 글자로 만든다
+  const cell = v => { let t=String(v??''); if(/^[=+\-@\t\r]/.test(t)) t="'"+t; return `"${t.replace(/"/g,'""')}"`; };
   sessions.forEach(s=>{
     lines.push([s.studentName,s.classroom,s.kind,(s.difficulty||('Lv'+s.level)),s.boardSize,s.durationSec,s.mistakeCount,s.hintCount,s.stars,s.recordScore,s.completed,s.xpEarned,s.finishedAt]
-      .map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(','));
+      .map(cell).join(','));
   });
   const csv = '﻿'+lines.join('\n');
   if(App.downloadsCap){
@@ -1975,8 +2082,10 @@ document.addEventListener('submit', (e)=>{
 
 document.addEventListener('change', (e)=>{
   if(e.target.id==='a-level'){
+    const isPractice = e.target.value.startsWith('p');
     const size=document.getElementById('a-size');
-    if(size) size.disabled = !e.target.value.startsWith('p');
+    if(size) size.disabled = !isPractice;
+    document.querySelectorAll('#a-diffs input').forEach(cb=>{ cb.disabled = isPractice; });
   }
 });
 
@@ -1992,7 +2101,7 @@ document.addEventListener('click', (e)=>{
     case 'go-student': renderStudentEntry(); break;
     case 'quick-continue': { const l=lsGet('last_login'); if(l && l.name && l.classroom) doEntry(l.name,l.classroom,l.avatar); else renderStudentEntry(); break; }
     case 'play-now':
-    case 'resume-game': if(!resumeSession()) routeAfterEntry(); break;
+    case 'resume-game': playNow(); break;
     case 'pick-avatar': pickAvatar(t.dataset.av); break;
     case 'rules-next': afterRules(); break;
     case 'pick-size': pickSize(+t.dataset.size); break;
@@ -2010,6 +2119,7 @@ document.addEventListener('click', (e)=>{
     case 'rank-tab': App.rankTab=t.dataset.tab; renderRanking(); break;
     case 'refresh-dashboard': loadDashboardData(); break;
     case 'export-csv': exportCSV(); break;
+    case 'teacher-logout': teacherLogout(); renderTeacherLogin(); toast('로그아웃했어요.'); break;
     case 'assign-save': saveAssignment(); break;
     case 'visibility-save': saveVisibility(); break;
     case 'teacher-rank-tab': teacherRankTab(t.dataset.tab); break;

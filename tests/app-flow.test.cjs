@@ -2,10 +2,10 @@
 const {JSDOM}=require('jsdom'); const fs=require('fs'); const {webcrypto}=require('crypto');
 function deepFreeze(o){ if(o&&typeof o==='object'){ Object.values(o).forEach(deepFreeze); Object.freeze(o);} return o; }
 const html=fs.readFileSync(process.argv[2]||require('path').join(__dirname,'..','index.html'),'utf8');
-const store={};
+const store={}; const failGet=new Set(); let csvSaved=null;
 const clone=x=>JSON.parse(JSON.stringify(x));
 function mkdb(){
-  const doc=p=>({get:async()=>({exists:p in store,data:()=>deepFreeze(clone(store[p]))}),
+  const doc=p=>({get:async()=>{ if(failGet.has(p)) throw new Error('offline'); return {exists:p in store,data:()=>deepFreeze(clone(store[p]))}; },
     set:async d=>{store[p]=clone(d);}, update:async d=>{store[p]=Object.assign(store[p]||{},clone(d));}});
   const coll=n=>({add:async d=>{store[n+'/'+Math.random().toString(36).slice(2)]=clone(d);},
     where:(f,op,v)=>({get:async()=>({docs:Object.keys(store).filter(k=>k.split('/')[0]===n&&k.split('/').length===2&&store[k][f]===v).map(k=>({id:k,data:()=>deepFreeze(clone(store[k]))}))})})});
@@ -13,7 +13,7 @@ function mkdb(){
 }
 const b64=s=>Buffer.from(s).toString('base64').replace(/\//g,'_').replace(/=+$/,'');
 const dom=new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:'https://claude.ai/x',
-  beforeParse(w){ w.claude={use:n=>new Promise(r=>setTimeout(()=>r(n==='db'?mkdb():null),300))};
+  beforeParse(w){ w.claude={use:n=>new Promise(r=>setTimeout(()=>r(n==='db'?mkdb():n==='downloads'?{save:async x=>{csvSaved=x;}}:null),300))};
     Object.defineProperty(w,'crypto',{value:webcrypto}); w.TextEncoder=TextEncoder; w.Element.prototype.scrollIntoView=()=>{}; }});
 const w=dom.window,d=w.document; const errs=[];
 w.addEventListener('error',e=>errs.push(e.message)); w.addEventListener('unhandledrejection',e=>errs.push('UR '+(e.reason&&e.reason.stack)));
@@ -117,30 +117,52 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($('#nav-teacher').classList.contains('active'),'teacher menu active on dashboard');
   $('#v-select').value='top3'; click('[data-action=visibility-save]'); await wait(30);
   const lvlOpts=$$('#a-level option').map(o=>o.value);
-  ok(lvlOpts.join(',')==='p0,p1,p2,p3,easy,medium,hard,expert' && $$('#a-level optgroup').length===2,'assignment options: practice Lv.0-3 + each difficulty separately');
+  ok(lvlOpts.join(',')==='p0,p1,p2,p3,diff' && $$('#a-diffs input[type=checkbox]').length===4,'assignment options: practice Lv.0-3 + difficulty checkboxes');
   const setLevel=v=>{ $('#a-level').value=v; $('#a-level').dispatchEvent(new w.Event('change',{bubbles:true})); };
-  setLevel('hard'); ok($('#a-size').disabled,'board size select disabled for a difficulty');
-  setLevel('p2'); ok(!$('#a-size').disabled,'board size select enabled for practice');
+  const setDiffs=list=>$$('#a-diffs input').forEach(cb=>{ cb.checked=list.includes(cb.value); });
+  const checkedDiffs=()=>$$('#a-diffs input').filter(cb=>cb.checked).map(cb=>cb.value).join(',');
+  setLevel('diff'); ok($('#a-size').disabled && !$('#a-diffs input').disabled,'difficulty: size disabled, checkboxes enabled');
+  setLevel('p2'); ok(!$('#a-size').disabled && $('#a-diffs input').disabled,'practice: size enabled, checkboxes disabled');
   $('#a-on').value='true'; $('#a-size').value='6'; click('[data-action=assign-save]'); await wait(80);
-  ok(store[cfgKey].isAssigned===true && store[cfgKey].assignedLevel===2 && store[cfgKey].assignedDifficulty===null,'practice assignment saved');
+  ok(store[cfgKey].isAssigned===true && store[cfgKey].assignedLevel===2 && store[cfgKey].assignedDifficulties===null,'practice assignment saved');
   click('#btn-switch'); await wait(30);
   click('[data-action=quick-continue]'); await wait(400);
   ok($$('#board .cell').length===36 && $('.play-head .stage-tag').textContent.includes('LV.2'),'assigned Lv.2 6x6 via quick continue');
   ok($$('.mode-tab:disabled').length===4 && !$('.mode-tab[data-mode="practice"]').disabled,'difficulty tabs locked in assigned practice');
   ok($('.assign-note') && $('.assign-note').textContent.includes('연습 Lv.2'),'assigned note names the level');
-  // 교사가 '보통'만 지정 → 학생은 보통(6×6) 탭만
-  click('#nav-teacher'); await wait(120);
-  ok($('#a-level').value==='p2','dashboard shows saved practice assignment');
-  setLevel('medium'); click('[data-action=assign-save]'); await wait(80);
-  ok(store[cfgKey].assignedLevel===4 && store[cfgKey].assignedDifficulty==='medium','difficulty assignment saved (medium)');
+  // 이미 접속한 학생: 교사가 다른 기기에서 보통+어려움을 열면, 다시 들어오지 않아도 잠긴 탭을 누를 때 확인해 열린다
+  Object.assign(store[cfgKey],{assignedLevel:4,assignedDifficulties:['medium','hard']});
+  click('.mode-tab[data-mode="hard"]'); await wait(300);
+  ok($('.mode-tab.active').dataset.mode==='hard' && $$('#board .cell').length===81 && $$('.mode-tab:disabled').length===3,'assignment change picked up without re-entry (medium+hard open)');
+  ok(/보통.*어려움/.test($('.assign-note').textContent),'assigned note lists both difficulties');
+  // 사용자 전환 뒤에는 교사도 다시 로그인해야 한다(공용 PC)
+  click('#nav-teacher'); await wait(50);
+  ok($('#teacher-login-form'),'teacher must log in again after user switch');
+  $('#t-class').value='3-2'; $('#t-pass').value='old'; submit('teacher-login-form'); await wait(150);
+  ok($('#a-level').value==='diff' && checkedDiffs()==='medium,hard','dashboard shows saved multi-difficulty assignment');
+  setDiffs([]); click('[data-action=assign-save]'); await wait(80);
+  ok(store[cfgKey].assignedDifficulties.join()==='medium,hard' && $('#toast').textContent.includes('하나 이상'),'empty difficulty selection rejected');
+  setDiffs(['medium']); click('[data-action=assign-save]'); await wait(80);
+  ok(store[cfgKey].assignedDifficulties.join()==='medium' && store[cfgKey].assignedDifficulty===null,'single difficulty saved as list');
+  store['sessions/inj']={studentName:'=1+1',classroom:'3-2',kind:'free',difficulty:'easy',boardSize:4,durationSec:9,completed:true,finishedAt:'2026-10-02T00:00:00Z'};
+  click('[data-action=refresh-dashboard]'); await wait(80);
+  click('[data-action=export-csv]'); await wait(50);
+  ok(csvSaved && csvSaved.data.includes(`"'=1+1"`) && !csvSaved.data.includes('"=1+1"'),'CSV neutralizes formula-like names');
+  click('[data-action=teacher-logout]'); await wait(20);
+  ok($('#teacher-login-form'),'logout returns to login form');
+  click('#nav-teacher'); await wait(20);
+  ok($('#teacher-login-form'),'after logout teacher menu asks for password again');
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
   ok($('.mode-tab.active').dataset.mode==='medium' && $$('#board .cell').length===36,'assigned medium → starts 6x6 medium');
   ok($$('.mode-tab:disabled').length===4 && !$('.mode-tab[data-mode="medium"]').disabled,'only the assigned difficulty tab is open');
   ok($('.assign-note').textContent.includes('보통'),'assigned note names the difficulty');
   click('.mode-tab[data-mode="hard"]'); await wait(100);
   ok($('.mode-tab.active').dataset.mode==='medium','locked tab cannot be opened');
-  // v0.2 학급 설정(assignedLevel 4, 난이도 없음)은 예전처럼 난이도 자유
-  store[cfgKey].assignedLevel=4; delete store[cfgKey].assignedDifficulty;
+  // v0.3 형식(난이도 하나)과 v0.2 형식(assignedLevel 4, 난이도 없음)도 읽는다
+  store[cfgKey].assignedDifficulty='expert'; delete store[cfgKey].assignedDifficulties;
+  click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
+  ok($('.mode-tab.active').dataset.mode==='expert' && $$('.mode-tab:disabled').length===4,'v0.3 single-difficulty config still works');
+  delete store[cfgKey].assignedDifficulty;
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
   ok($('.mode-tab[data-mode="practice"]').disabled && $$('.mode-tab:disabled').length===1,'legacy Lv.4 config → only practice locked');
   click('#nav-rank'); await wait(100);
@@ -148,6 +170,14 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($$('#rank-body tbody tr').length===3,'top3 visibility applied to student ranking');
   click('[data-action=resume-game]'); await wait(50);
   key('ArrowDown'); ok($('.cell.selected'),'arrow key selects a cell when nothing selected');
+  // 힌트 무제한 단계(지정된 연습 Lv.1)에서 힌트만으로 채우면 XP가 없다
+  Object.assign(store[cfgKey],{assignedLevel:1,assignedBoardSize:4,assignedDifficulties:null});
+  click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
+  ok($('.play-head .stage-tag').textContent.includes('LV.1') && $$('#board .cell').length===16,'assigned practice Lv.1 4x4');
+  const xp0=store['profiles/'+myId].totalXP;
+  { const g0=readBoard(); for(let r=0;r<4;r++)for(let c=0;c<4;c++) if(!g0[r][c]){ click(`#board .cell[data-r="${r}"][data-c="${c}"]`); click('#btn-hint'); } }
+  await wait(100);
+  ok($('.result-card') && $('.xp-burst').textContent.trim()==='+0 XP' && store['profiles/'+myId].totalXP===xp0,'hint-only practice earns no XP: '+($('.xp-burst')||{}).textContent);
   store[cfgKey].isAssigned=false;
   click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
   click('.mode-tab[data-mode="practice"]'); await wait(200);
@@ -160,6 +190,15 @@ function wrongMove(){ const g0=readBoard(); const sol=solve(g0.map(r=>r.slice())
   ok($('.play-head .stage-tag').textContent.includes('LV.3'),'next step goes to Lv.3');
   solveOnScreen(); await wait(100);
   ok($('.grad') && store['profiles/'+myId].tutorialLevel===4 && $('[data-action=switch-mode][data-mode=easy]'),'Lv.3 completion graduates ladder');
+  // 서버 기록을 못 읽으면 입장하지 않는다(빈 프로필로 서버 기록을 덮어쓰지 않게)
+  const before=JSON.stringify(store['profiles/'+myId]);
+  failGet.add('profiles/'+myId);
+  click('#btn-switch'); await wait(30); click('[data-action=quick-continue]'); await wait(400);
+  ok($('#entry-form') && !$('#entry-err').hidden && $('#in-name').value==='김하늘' && !$('#board'),'profile read failure → stays on entry form with error');
+  ok(JSON.stringify(store['profiles/'+myId])===before,'profile not overwritten on read failure');
+  failGet.delete('profiles/'+myId);
+  submit('entry-form'); await wait(400);
+  ok($('#board') || $('.result-card') || $('[data-action=rules-next]'),'retry after recovery enters the game');
   ok(!errs.length,'no runtime errors '+errs.join('; '));
   console.log(fails?`${fails} FAILED`:'ALL PASSED');
   process.exit(fails?1:0);
